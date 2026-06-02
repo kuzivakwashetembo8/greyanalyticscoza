@@ -163,3 +163,31 @@
   100% { box-shadow: 0 0 0 16px transparent; }
 }
 .pulse-ring { animation: pulse-ring 1.6s ease-out infinite; }
+
+/* ============================================
+   TEMPORARY: Hide Lovable Badge
+   Remove this section after 1-2 hours once the
+   badge removal propagates from Lovable settings.
+   ============================================ */
+#lovable-badge {
+    display: none;      /* Completely removes it from layout */
+    visibility: hidden; /* Makes it invisible but still occupies space */
+    opacity: 0;         /* Makes it fully transparent */
+    pointer-events: none; /* Disables clicks/interactions */
+}
+
+a[href="https://lovable.dev/projects/0d171e46-a2ec-4c61-96e7-1a2d79e0c0b6?utm_source=lovable-badge"][target="_blank"] {
+    display: none;
+}
+
+a#lovable-badge {
+    display: none;
+}
+
+a[href^="https://lovable.dev/projects/0d171e46-a2ec-4c61-96e7-1a2d79e0c0b6"] {
+    display: none;
+}
+
+#container #lovable-badge {
+    display: none;
+}
