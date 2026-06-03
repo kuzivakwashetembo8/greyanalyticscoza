@@ -31,7 +31,8 @@ export function FileDropZone({ onComplete }: Props) {
 
   const handleFiles = useCallback((fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-    const list = Array.from(fileList).map((f) => ({ name: f.name, size: f.size, type: f.type }));
+    const raw = Array.from(fileList);
+    const list = raw.map((f) => ({ name: f.name, size: f.size, type: f.type }));
     setFiles(list);
     setStage("uploading");
     setProgress(0);
