@@ -51,7 +51,7 @@ export function FileDropZone({ onComplete }: Props) {
           if (i >= STEPS.length) {
             clearInterval(stepTimer);
             setStage("done");
-            setTimeout(() => onComplete(list), 600);
+            setTimeout(() => onComplete(list, raw), 600);
           } else {
             setStepIdx(i);
           }
