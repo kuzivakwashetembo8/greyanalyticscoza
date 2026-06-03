@@ -51,7 +51,6 @@ async function extractPdf(buf: ArrayBuffer): Promise<string> {
   const doc = await pdfjs.getDocument({
     data: new Uint8Array(buf),
     useWorkerFetch: false,
-    isEvalSupported: false,
     useSystemFonts: false,
   }).promise;
   const pages: string[] = [];
