@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Share2, Printer } from "lucide-react";
+import { ArrowLeft, Download, Share2, Printer, Eye } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import { ExecutiveSummary, LeakCard, RoiEstimate } from "@/components/report/ReportParts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatZAR } from "@/lib/mock";
 import { toast } from "sonner";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_app/report/$id")({
   head: () => ({ meta: [{ title: "Audit report · Grey Analytics" }] }),
