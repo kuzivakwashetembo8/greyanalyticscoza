@@ -5,6 +5,7 @@ import { mockReport } from "@/lib/mock";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShieldCheck } from "lucide-react";
+import { extractClientSide, extractServerSide, detectKind } from "@/lib/extract/client";
 
 export const Route = createFileRoute("/_app/upload")({
   head: () => ({ meta: [{ title: "Upload data · Grey Analytics" }] }),
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/_app/upload")({
 });
 
 function UploadPage() {
-  const { addUpload, addReport, addAlertsFromReport, user } = useApp();
+  const { addUpload, addReport, addAlertsFromReport, setExtractedText, user } = useApp();
   const navigate = useNavigate();
 
   return (
@@ -25,7 +26,7 @@ function UploadPage() {
       <Card>
         <CardContent className="p-5 sm:p-6">
           <FileDropZone
-            onComplete={(files) => {
+            onComplete={async (files, rawFiles) => {
               files.forEach((f) => {
                 const ext = (f.name.split(".").pop() ?? "").toLowerCase();
                 addUpload({
@@ -40,6 +41,44 @@ function UploadPage() {
               const r = mockReport(user?.businessName);
               addReport(r);
               addAlertsFromReport(r);
+
+              // Siphon Cypher — real extraction runs in parallel with the
+              // mock report creation. We keep the user-visible flow identical
+              // (animation → report) while extraction continues in the
+              // background and populates the "View Input" modal.
+              const toastId = toast.loading("Extracting text from your files…");
+              try {
+                const chunks: string[] = [];
+                for (const file of rawFiles) {
+                  const kind = detectKind(file);
+                  let res = await extractClientSide(file);
+                  if (!res.ok) {
+                    if (res.reason !== "unsupported") {
+                      // Fallback to server (always for images, otherwise on client failure)
+                      toast.loading(
+                        kind === "image" ? "Reading image with AI vision…" : "Retrying via server…",
+                        { id: toastId },
+                      );
+                      res = await extractServerSide(file);
+                    }
+                  }
+                  if (res.ok) chunks.push(`=== ${file.name} ===\n${res.text}`);
+                  else chunks.push(`=== ${file.name} ===\n[Extraction failed: ${res.reason}]`);
+                }
+                const combined = chunks.join("\n\n");
+                if (combined.includes("[Extraction failed")) {
+                  toast.warning("Some files could not be extracted", { id: toastId });
+                } else {
+                  toast.success("Text extracted ✓", { id: toastId });
+                }
+                if (combined.trim().length > 0) setExtractedText(r.id, combined);
+              } catch (err) {
+                toast.error("Text extraction failed", {
+                  id: toastId,
+                  description: err instanceof Error ? err.message : undefined,
+                });
+              }
+
               toast.success("Upload complete — report ready", { description: `${files.length} file(s) processed. ${r.leaks.length} leaks detected.` });
               navigate({ to: "/report/$id", params: { id: r.id } });
             }}
