@@ -27,6 +27,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [extractedTexts, setExtractedTexts] = useState<Record<string, string>>({});
 
   // Seed mock data when user logs in
   useEffect(() => {
