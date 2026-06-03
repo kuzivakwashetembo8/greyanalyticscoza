@@ -15,6 +15,8 @@ interface AppState {
   alerts: Alert[];
   addAlertsFromReport: (r: Report) => void;
   markAlertRead: (id: string) => void;
+  extractedTexts: Record<string, string>;
+  setExtractedText: (reportId: string, text: string) => void;
 }
 
 const Ctx = createContext<AppState | null>(null);
