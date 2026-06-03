@@ -55,6 +55,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUploads([]);
       setReports([]);
       setAlerts([]);
+      setExtractedTexts({});
     },
     uploads,
     addUpload: (u) => setUploads((prev) => [u, ...prev]),
