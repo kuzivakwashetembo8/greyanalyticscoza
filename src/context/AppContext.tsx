@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { mockAlerts, mockReport, mockUploads, mockUser, type Alert, type MockUser, type Report, type Role, type Upload } from "@/lib/mock";
+import type { AgentId, AgentResult } from "@/lib/analysis/types";
 
 interface AppState {
   user: MockUser | null;
@@ -17,6 +18,10 @@ interface AppState {
   markAlertRead: (id: string) => void;
   extractedTexts: Record<string, string>;
   setExtractedText: (reportId: string, text: string) => void;
+  // Transmit Assessment — per-report, per-agent analysis results.
+  analyses: Record<string, Partial<Record<AgentId, AgentResult>>>;
+  setAgentResult: (reportId: string, agent: AgentId, result: AgentResult) => void;
+  clearAnalysis: (reportId: string) => void;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -28,6 +33,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [reports, setReports] = useState<Report[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [extractedTexts, setExtractedTexts] = useState<Record<string, string>>({});
+  const [analyses, setAnalyses] = useState<Record<string, Partial<Record<AgentId, AgentResult>>>>({});
+
 
   // Seed mock data when user logs in
   useEffect(() => {
@@ -56,6 +63,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setReports([]);
       setAlerts([]);
       setExtractedTexts({});
+      setAnalyses({});
     },
     uploads,
     addUpload: (u) => setUploads((prev) => [u, ...prev]),
@@ -73,7 +81,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     markAlertRead: (id) => setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, read: true } : a))),
     extractedTexts,
     setExtractedText: (reportId, text) => setExtractedTexts((prev) => ({ ...prev, [reportId]: text })),
-  }), [user, role, uploads, reports, alerts, extractedTexts]);
+    analyses,
+    setAgentResult: (reportId, agent, result) =>
+      setAnalyses((prev) => ({ ...prev, [reportId]: { ...(prev[reportId] ?? {}), [agent]: result } })),
+    clearAnalysis: (reportId) =>
+      setAnalyses((prev) => {
+        const next = { ...prev };
+        delete next[reportId];
+        return next;
+      }),
+  }), [user, role, uploads, reports, alerts, extractedTexts, analyses]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
