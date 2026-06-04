@@ -19,6 +19,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppAlertsRouteImport } from './routes/_app.alerts'
 import { Route as AppReportIdRouteImport } from './routes/_app.report.$id'
+import { Route as AppAnalysisIdRouteImport } from './routes/_app.analysis.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -69,6 +70,11 @@ const AppReportIdRoute = AppReportIdRouteImport.update({
   path: '/report/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAnalysisIdRoute = AppAnalysisIdRouteImport.update({
+  id: '/analysis/$id',
+  path: '/analysis/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/upload': typeof AppUploadRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/extract': typeof ApiExtractRoute
+  '/analysis/$id': typeof AppAnalysisIdRoute
   '/report/$id': typeof AppReportIdRoute
 }
 export interface FileRoutesByTo {
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/upload': typeof AppUploadRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/extract': typeof ApiExtractRoute
+  '/analysis/$id': typeof AppAnalysisIdRoute
   '/report/$id': typeof AppReportIdRoute
 }
 export interface FileRoutesById {
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/_app/upload': typeof AppUploadRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/extract': typeof ApiExtractRoute
+  '/_app/analysis/$id': typeof AppAnalysisIdRoute
   '/_app/report/$id': typeof AppReportIdRoute
 }
 export interface FileRouteTypes {
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/api/analyze'
     | '/api/extract'
+    | '/analysis/$id'
     | '/report/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/api/analyze'
     | '/api/extract'
+    | '/analysis/$id'
     | '/report/$id'
   id:
     | '__root__'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/_app/upload'
     | '/api/analyze'
     | '/api/extract'
+    | '/_app/analysis/$id'
     | '/_app/report/$id'
   fileRoutesById: FileRoutesById
 }
@@ -222,6 +234,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/analysis/$id': {
+      id: '/_app/analysis/$id'
+      path: '/analysis/$id'
+      fullPath: '/analysis/$id'
+      preLoaderRoute: typeof AppAnalysisIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -230,6 +249,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppUploadRoute: typeof AppUploadRoute
+  AppAnalysisIdRoute: typeof AppAnalysisIdRoute
   AppReportIdRoute: typeof AppReportIdRoute
 }
 
@@ -238,6 +258,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppUploadRoute: AppUploadRoute,
+  AppAnalysisIdRoute: AppAnalysisIdRoute,
   AppReportIdRoute: AppReportIdRoute,
 }
 
@@ -253,3 +274,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

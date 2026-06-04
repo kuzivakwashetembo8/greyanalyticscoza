@@ -8,7 +8,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ShieldCheck, AlertTriangle, CheckCircle2, Play } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ShieldCheck, AlertTriangle, CheckCircle2, Play, Sparkles, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/upload")({
@@ -16,15 +24,13 @@ export const Route = createFileRoute("/_app/upload")({
   component: UploadPage,
 });
 
-// Loading sequence — extraction is the FINAL step per the refined brief.
+// Siphon Cypher stage only — Transmit Assessment runs on its own page after
+// the user explicitly clicks "Analyze" in the success modal.
 const STEPS = [
   "Reading the file…",
-  "Connecting to Xero…",
-  "Scanning transactions for duplicates…",
-  "Finance agent analysing…",
-  "Compliance agent checking VAT & COIDA…",
-  "Ops agent reviewing payroll cycles…",
-  "Strategy agent estimating ROI…",
+  "Detecting file format…",
+  "Parsing pages and sheets…",
+  "Running OCR where needed…",
   "Extracting text with Siphon Cypher…",
 ] as const;
 
@@ -37,6 +43,8 @@ function UploadPage() {
   const [stepIdx, setStepIdx] = useState(0);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // Success modal — gates the transition to Transmit Assessment.
+  const [done, setDone] = useState<{ reportId: string; chars: number; files: number } | null>(null);
 
   const addFiles = (incoming: File[]) => {
     setError(null);
@@ -60,21 +68,16 @@ function UploadPage() {
     setStepIdx(0);
     setProgress(0);
 
-    // Animate steps 0..(STEPS.length - 2). The final step (extraction) is
-    // gated on the real extraction call below so the UI cannot reach 100%
-    // until extraction actually completes (or fails).
-    const animatedSteps = STEPS.length - 1;
-    const perStepMs = 450;
-    for (let i = 0; i < animatedSteps; i++) {
+    // Animate all but the final step; the final step is gated on the real
+    // extraction call so the progress bar never lies about completion.
+    const animated = STEPS.length - 1;
+    for (let i = 0; i < animated; i++) {
       setStepIdx(i);
       setProgress(Math.round(((i + 1) / STEPS.length) * 100));
-      await new Promise((r) => setTimeout(r, perStepMs));
+      await new Promise((r) => setTimeout(r, 380));
     }
+    setStepIdx(animated);
 
-    // Final step — REAL Siphon Cypher extraction. Dynamic import keeps
-    // pdfjs / xlsx out of the SSR module graph (defensive against the
-    // recent "SSR rendering failed" runtime error).
-    setStepIdx(animatedSteps);
     try {
       const { extractClientSide, extractServerSide, detectKind } = await import(
         "@/lib/extract/client"
@@ -85,11 +88,9 @@ function UploadPage() {
         const kind = detectKind(file);
         let res = await extractClientSide(file);
         if (!res.ok && res.reason !== "unsupported") {
-          // Images always go to server; client failures fall back to server.
-          res =
-            kind === "image" || res.reason === "image-needs-server"
-              ? await extractServerSide(file)
-              : await extractServerSide(file);
+          res = kind === "image" || res.reason === "image-needs-server"
+            ? await extractServerSide(file)
+            : await extractServerSide(file);
         }
         if (res.ok) chunks.push(`=== ${file.name} ===\n${res.text}`);
         else failures.push(`${file.name} (${res.reason})`);
@@ -105,7 +106,9 @@ function UploadPage() {
 
       setProgress(100);
 
-      // Success — register upload artefacts, mock report and alerts.
+      // Register the upload artefacts and an empty mock report shell. The
+      // report's mock charts/leaks remain untouched; Transmit Assessment
+      // results live on a SEPARATE /analysis page per spec.
       files.forEach((f) => {
         const ext = (f.name.split(".").pop() ?? "").toLowerCase();
         addUpload({
@@ -114,19 +117,18 @@ function UploadPage() {
           size: (f.size / 1024 / 1024).toFixed(2) + " MB",
           uploadedAt: new Date(),
           status: "ready",
-          source:
-            ext === "pdf" ? "PDF" : ext === "csv" ? "CSV" : ext.startsWith("xls") ? "Excel" : "Image",
+          source: ext === "pdf" ? "PDF" : ext === "csv" ? "CSV" : ext.startsWith("xls") ? "Excel" : "Image",
         });
       });
       const r = mockReport(user?.businessName);
       addReport(r);
       addAlertsFromReport(r);
-      setExtractedText(r.id, chunks.join("\n\n"));
+      const text = chunks.join("\n\n");
+      setExtractedText(r.id, text);
 
-      toast.success("Upload complete — report ready", {
-        description: `${files.length} file(s) processed. ${r.leaks.length} leaks detected.`,
-      });
-      navigate({ to: "/report/$id", params: { id: r.id } });
+      toast.success("Text extracted successfully", { description: `${files.length} file(s) processed.` });
+      setDone({ reportId: r.id, chars: text.length, files: files.length });
+      setRunning(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Text extraction failed.";
       setError(msg);
@@ -175,9 +177,9 @@ function UploadPage() {
                   <div className="size-3 rounded-full bg-primary animate-pulse" />
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold">Grey Analytics is working…</div>
+                  <div className="font-semibold">Siphon Cypher is reading your files…</div>
                   <div className="text-xs text-muted-foreground">
-                    Four AI agents are checking your data. Text extraction runs last.
+                    Step 1 of 2 — text extraction. The 4-agent analysis runs after this.
                   </div>
                 </div>
                 <span className="text-sm tabular-nums text-muted-foreground">{progress}%</span>
@@ -185,10 +187,7 @@ function UploadPage() {
               <Progress value={progress} className="mb-4" />
               <ol className="space-y-1.5 text-sm">
                 {STEPS.map((s, i) => (
-                  <li
-                    key={s}
-                    className={cn("flex items-center gap-2 transition", i > stepIdx && "opacity-30")}
-                  >
+                  <li key={s} className={cn("flex items-center gap-2 transition", i > stepIdx && "opacity-30")}>
                     {i < stepIdx ? (
                       <CheckCircle2 className="size-4 text-success" />
                     ) : i === stepIdx ? (
@@ -212,6 +211,44 @@ function UploadPage() {
           offboarding (POPIA).
         </p>
       </div>
+
+      {/* Success modal — gateway to Transmit Assessment. */}
+      <Dialog open={!!done} onOpenChange={(o) => !o && setDone(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="size-12 rounded-full bg-success/10 grid place-items-center mb-3">
+              <CheckCircle2 className="size-6 text-success" />
+            </div>
+            <DialogTitle>Text extracted successfully</DialogTitle>
+            <DialogDescription>
+              Siphon Cypher pulled {done?.chars.toLocaleString()} characters from {done?.files} file
+              {done?.files === 1 ? "" : "s"}. You can now run Transmit Assessment to analyse it with four
+              specialist AI agents.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (done) navigate({ to: "/report/$id", params: { id: done.reportId } });
+                setDone(null);
+              }}
+            >
+              <FileText className="size-4 mr-1.5" />
+              View mock report
+            </Button>
+            <Button
+              onClick={() => {
+                if (done) navigate({ to: "/analysis/$id", params: { id: done.reportId } });
+                setDone(null);
+              }}
+            >
+              <Sparkles className="size-4 mr-1.5" />
+              Analyze
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
