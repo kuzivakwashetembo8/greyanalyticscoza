@@ -52,11 +52,6 @@ const ApiAnalyzeRoute = ApiAnalyzeRouteImport.update({
   path: '/api/analyze',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiReportRoute = ApiReportRouteImport.update({
-  id: '/api/report',
-  path: '/api/report',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AppUploadRoute = AppUploadRouteImport.update({
   id: '/upload',
   path: '/upload',
@@ -90,11 +85,6 @@ const AppInspectionIdRoute = AppInspectionIdRouteImport.update({
 const AppAnalysisIdRoute = AppAnalysisIdRouteImport.update({
   id: '/analysis/$id',
   path: '/analysis/$id',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppInspectionIdRoute = AppInspectionIdRouteImport.update({
-  id: '/inspection/$id',
-  path: '/inspection/$id',
   getParentRoute: () => AppRoute,
 } as any)
 
