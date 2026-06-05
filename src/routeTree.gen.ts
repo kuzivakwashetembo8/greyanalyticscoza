@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiReportRouteImport } from './routes/api/report'
 import { Route as ApiExtractRouteImport } from './routes/api/extract'
 import { Route as ApiAnalyzeRouteImport } from './routes/api/analyze'
 import { Route as AppUploadRouteImport } from './routes/_app.upload'
@@ -19,6 +20,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppAlertsRouteImport } from './routes/_app.alerts'
 import { Route as AppReportIdRouteImport } from './routes/_app.report.$id'
+import { Route as AppInspectionIdRouteImport } from './routes/_app.inspection.$id'
 import { Route as AppAnalysisIdRouteImport } from './routes/_app.analysis.$id'
 
 const LoginRoute = LoginRouteImport.update({
@@ -33,6 +35,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReportRoute = ApiReportRouteImport.update({
+  id: '/api/report',
+  path: '/api/report',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiExtractRoute = ApiExtractRouteImport.update({
@@ -70,6 +77,11 @@ const AppReportIdRoute = AppReportIdRouteImport.update({
   path: '/report/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppInspectionIdRoute = AppInspectionIdRouteImport.update({
+  id: '/inspection/$id',
+  path: '/inspection/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAnalysisIdRoute = AppAnalysisIdRouteImport.update({
   id: '/analysis/$id',
   path: '/analysis/$id',
@@ -85,7 +97,9 @@ export interface FileRoutesByFullPath {
   '/upload': typeof AppUploadRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/extract': typeof ApiExtractRoute
+  '/api/report': typeof ApiReportRoute
   '/analysis/$id': typeof AppAnalysisIdRoute
+  '/inspection/$id': typeof AppInspectionIdRoute
   '/report/$id': typeof AppReportIdRoute
 }
 export interface FileRoutesByTo {
@@ -97,7 +111,9 @@ export interface FileRoutesByTo {
   '/upload': typeof AppUploadRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/extract': typeof ApiExtractRoute
+  '/api/report': typeof ApiReportRoute
   '/analysis/$id': typeof AppAnalysisIdRoute
+  '/inspection/$id': typeof AppInspectionIdRoute
   '/report/$id': typeof AppReportIdRoute
 }
 export interface FileRoutesById {
@@ -111,7 +127,9 @@ export interface FileRoutesById {
   '/_app/upload': typeof AppUploadRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/extract': typeof ApiExtractRoute
+  '/api/report': typeof ApiReportRoute
   '/_app/analysis/$id': typeof AppAnalysisIdRoute
+  '/_app/inspection/$id': typeof AppInspectionIdRoute
   '/_app/report/$id': typeof AppReportIdRoute
 }
 export interface FileRouteTypes {
@@ -125,7 +143,9 @@ export interface FileRouteTypes {
     | '/upload'
     | '/api/analyze'
     | '/api/extract'
+    | '/api/report'
     | '/analysis/$id'
+    | '/inspection/$id'
     | '/report/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -137,7 +157,9 @@ export interface FileRouteTypes {
     | '/upload'
     | '/api/analyze'
     | '/api/extract'
+    | '/api/report'
     | '/analysis/$id'
+    | '/inspection/$id'
     | '/report/$id'
   id:
     | '__root__'
@@ -150,7 +172,9 @@ export interface FileRouteTypes {
     | '/_app/upload'
     | '/api/analyze'
     | '/api/extract'
+    | '/api/report'
     | '/_app/analysis/$id'
+    | '/_app/inspection/$id'
     | '/_app/report/$id'
   fileRoutesById: FileRoutesById
 }
@@ -160,6 +184,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiAnalyzeRoute: typeof ApiAnalyzeRoute
   ApiExtractRoute: typeof ApiExtractRoute
+  ApiReportRoute: typeof ApiReportRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -183,6 +208,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/report': {
+      id: '/api/report'
+      path: '/api/report'
+      fullPath: '/api/report'
+      preLoaderRoute: typeof ApiReportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/extract': {
@@ -234,6 +266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/inspection/$id': {
+      id: '/_app/inspection/$id'
+      path: '/inspection/$id'
+      fullPath: '/inspection/$id'
+      preLoaderRoute: typeof AppInspectionIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/analysis/$id': {
       id: '/_app/analysis/$id'
       path: '/analysis/$id'
@@ -250,6 +289,7 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppUploadRoute: typeof AppUploadRoute
   AppAnalysisIdRoute: typeof AppAnalysisIdRoute
+  AppInspectionIdRoute: typeof AppInspectionIdRoute
   AppReportIdRoute: typeof AppReportIdRoute
 }
 
@@ -259,6 +299,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppUploadRoute: AppUploadRoute,
   AppAnalysisIdRoute: AppAnalysisIdRoute,
+  AppInspectionIdRoute: AppInspectionIdRoute,
   AppReportIdRoute: AppReportIdRoute,
 }
 
@@ -270,6 +311,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiAnalyzeRoute: ApiAnalyzeRoute,
   ApiExtractRoute: ApiExtractRoute,
+  ApiReportRoute: ApiReportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
