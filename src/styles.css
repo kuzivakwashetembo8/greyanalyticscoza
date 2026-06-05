@@ -258,3 +258,37 @@ a[href^="https://lovable.dev/projects/0d171e46-a2ec-4c61-96e7-1a2d79e0c0b6"] {
     hyphens: manual;
   }
 }
+
+/* ============================================
+   Inspection Export — print styles
+   When body.ga-printing is set (via exportPdf), or when the user invokes
+   the browser's native print dialog from the report page, we hide every
+   element except the `.ga-print-area` subtree so the PDF contains only
+   report content (no sidebar, header, footer, or toolbar).
+   ============================================ */
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body { background: white !important; }
+  /* Hide the entire app shell by default in print. */
+  body * { visibility: hidden !important; }
+  /* Re-show the report subtree. */
+  .ga-print-area, .ga-print-area * { visibility: visible !important; }
+  .ga-print-area {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    color: black !important;
+    background: white !important;
+  }
+  /* Each report page breaks onto its own printed page. */
+  .ga-report-page {
+    break-inside: avoid;
+    page-break-after: always;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  .ga-no-print { display: none !important; }
+}

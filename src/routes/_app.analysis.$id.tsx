@@ -23,6 +23,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Eye,
+  FileText,
   Loader2,
   RefreshCw,
   Sparkles,
@@ -157,6 +158,16 @@ function AnalysisPage() {
             <Link to="/report/$id" params={{ id: reportId }}>
               Open mock report
             </Link>
+          </Button>
+          {/* Inspection Export — only enabled once all 4 agents have finished. */}
+          <Button size="sm" disabled={doneCount < AGENTS.length} asChild={doneCount >= AGENTS.length}>
+            {doneCount >= AGENTS.length ? (
+              <Link to="/inspection/$id" params={{ id: reportId }}>
+                <FileText className="size-4 mr-1.5" />Generate Report
+              </Link>
+            ) : (
+              <span><FileText className="size-4 mr-1.5" />Generate Report</span>
+            )}
           </Button>
         </div>
       </div>
