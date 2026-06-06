@@ -114,7 +114,43 @@ function AnalysisPage() {
     () => AGENTS.filter((a) => state[a.id].status === "done").length,
     [state],
   );
+  const finishedCount = useMemo(
+    () => AGENTS.filter((a) => state[a.id].status === "done" || state[a.id].status === "error").length,
+    [state],
+  );
   const progress = Math.round((doneCount / AGENTS.length) * 100);
+
+  // Fire WhatsApp + Email alerts once ALL agents finish (success or error),
+  // independent of audit-report generation, per spec. Same lifecycle as the
+  // "Generate Report" button.
+  useEffect(() => {
+    if (alertsFiredRef.current) return;
+    if (finishedCount < AGENTS.length) return;
+    const haveAny = AGENTS.some((a) => analyses[reportId]?.[a.id]);
+    if (!haveAny) return;
+    alertsFiredRef.current = true;
+    void (async () => {
+      const outcome = await triggerAlerts({
+        reportId,
+        businessName: report?.businessName ?? "Your business",
+        whatsappTo: user?.whatsapp,
+        emailTo: user?.email,
+        analyses: analyses[reportId] ?? {},
+      });
+      if (!outcome.triggered) return;
+      if (outcome.error) { toast.error("Alert failed — check settings"); return; }
+      const sent = outcome.persisted.filter((r) => r.status === "sent");
+      const failed = outcome.persisted.filter((r) => r.status === "failed");
+      if (sent.length && !failed.length) {
+        toast.success(`Alert sent via ${sent.map((s) => s.channel === "whatsapp" ? "WhatsApp" : "Email").join(" & ")}`);
+      } else if (sent.length) {
+        toast(`Alert sent via ${sent.map((s) => s.channel).join(", ")}; ${failed.length} failed`);
+      } else {
+        toast.error("Alert failed — check settings");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finishedCount]);
 
   if (!report) {
     return (
