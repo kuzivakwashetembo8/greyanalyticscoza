@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiReportRouteImport } from './routes/api/report'
 import { Route as ApiExtractRouteImport } from './routes/api/extract'
 import { Route as ApiAnalyzeRouteImport } from './routes/api/analyze'
+import { Route as ApiAlertsRouteImport } from './routes/api/alerts'
 import { Route as AppUploadRouteImport } from './routes/_app.upload'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -50,6 +51,11 @@ const ApiExtractRoute = ApiExtractRouteImport.update({
 const ApiAnalyzeRoute = ApiAnalyzeRouteImport.update({
   id: '/api/analyze',
   path: '/api/analyze',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAlertsRoute = ApiAlertsRouteImport.update({
+  id: '/api/alerts',
+  path: '/api/alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppUploadRoute = AppUploadRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/settings': typeof AppSettingsRoute
   '/upload': typeof AppUploadRoute
+  '/api/alerts': typeof ApiAlertsRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/report': typeof ApiReportRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/settings': typeof AppSettingsRoute
   '/upload': typeof AppUploadRoute
+  '/api/alerts': typeof ApiAlertsRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/report': typeof ApiReportRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/upload': typeof AppUploadRoute
+  '/api/alerts': typeof ApiAlertsRoute
   '/api/analyze': typeof ApiAnalyzeRoute
   '/api/extract': typeof ApiExtractRoute
   '/api/report': typeof ApiReportRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/upload'
+    | '/api/alerts'
     | '/api/analyze'
     | '/api/extract'
     | '/api/report'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/upload'
+    | '/api/alerts'
     | '/api/analyze'
     | '/api/extract'
     | '/api/report'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/settings'
     | '/_app/upload'
+    | '/api/alerts'
     | '/api/analyze'
     | '/api/extract'
     | '/api/report'
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiAlertsRoute: typeof ApiAlertsRoute
   ApiAnalyzeRoute: typeof ApiAnalyzeRoute
   ApiExtractRoute: typeof ApiExtractRoute
   ApiReportRoute: typeof ApiReportRoute
@@ -229,6 +242,13 @@ declare module '@tanstack/react-router' {
       path: '/api/analyze'
       fullPath: '/api/analyze'
       preLoaderRoute: typeof ApiAnalyzeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/alerts': {
+      id: '/api/alerts'
+      path: '/api/alerts'
+      fullPath: '/api/alerts'
+      preLoaderRoute: typeof ApiAlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/upload': {
@@ -309,6 +329,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiAlertsRoute: ApiAlertsRoute,
   ApiAnalyzeRoute: ApiAnalyzeRoute,
   ApiExtractRoute: ApiExtractRoute,
   ApiReportRoute: ApiReportRoute,
