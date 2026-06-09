@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -7,18 +7,30 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  listConnections,
+  startConnect,
+  disconnect,
+  type ConnectionStatus,
+} from "@/lib/accounting/client";
+import type { AccountingProvider } from "@/services/accounting/types";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings · Grey Analytics" }] }),
   component: SettingsPage,
 });
 
-const INTEGRATIONS = [
-  { name: "Xero", desc: "Sync transactions every 6 hours", connected: true },
-  { name: "QuickBooks", desc: "Sync transactions daily", connected: false },
-  { name: "Sage", desc: "Sync transactions daily", connected: true },
+// Static metadata for providers we render in the Integrations card. The
+// `connected` flag is hydrated from /api/accounting/status at mount.
+const ACCOUNTING_META: Array<{ id: AccountingProvider; name: string; desc: string }> = [
+  { id: "xero", name: "Xero", desc: "OAuth 2.0 · syncs bank transactions" },
+  { id: "quickbooks", name: "QuickBooks", desc: "Intuit OAuth · syncs purchases" },
+  { id: "sage", name: "Sage", desc: "Sage Business Cloud · syncs bank transactions" },
+];
+
+const EXTRA_INTEGRATIONS = [
   { name: "Bank Statement (PDF)", desc: "Upload manually", connected: true },
   { name: "WhatsApp Business", desc: "Receive alerts and send invoices", connected: true },
 ];
@@ -30,7 +42,48 @@ function SettingsPage() {
   const [name, setName] = useState(user?.name ?? "");
   const [biz, setBiz] = useState(user?.businessName ?? "");
   const [notify, setNotify] = useState(true);
-  const [integrations, setIntegrations] = useState(INTEGRATIONS);
+  const [acct, setAcct] = useState<ConnectionStatus[]>([]);
+  const [loadingAcct, setLoadingAcct] = useState(true);
+  const [busy, setBusy] = useState<AccountingProvider | null>(null);
+
+  // Hydrate accounting connection status + surface OAuth callback results.
+  useEffect(() => {
+    listConnections()
+      .then(setAcct)
+      .catch((err) => console.warn("[settings] listConnections failed:", err))
+      .finally(() => setLoadingAcct(false));
+
+    const params = new URLSearchParams(window.location.search);
+    const integ = params.get("integration");
+    const status = params.get("status");
+    const err = params.get("error");
+    if (integ && status === "connected") toast.success(`${integ} connected`);
+    if (integ && err) toast.error(`${integ}: ${err}`);
+    if (integ) window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
+  function statusFor(id: AccountingProvider) {
+    return acct.find((c) => c.provider === id);
+  }
+
+  async function handleConnect(p: AccountingProvider) {
+    setBusy(p);
+    try { await startConnect(p); } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to start OAuth");
+      setBusy(null);
+    }
+  }
+  async function handleDisconnect(p: AccountingProvider) {
+    setBusy(p);
+    try {
+      await disconnect(p);
+      setAcct((arr) => arr.map((c) => c.provider === p ? { ...c, connected: false } : c));
+      toast.success(`${p} disconnected`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Disconnect failed");
+    } finally { setBusy(null); }
+  }
+
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -66,38 +119,56 @@ function SettingsPage() {
             to improved grid/block structure on mobile to better accommodate smaller
             screens and prevent horizontal overflow. */}
         <CardContent className="divide-y divide-border">
-          {integrations.map((it, idx) => (
-            <div key={it.name} className="flex flex-col sm:flex-row sm:items-center gap-3 py-3 first:pt-0 last:pb-0">
+          {ACCOUNTING_META.map((it) => {
+            const s = statusFor(it.id);
+            const connected = Boolean(s?.connected);
+            const isBusy = busy === it.id;
+            return (
+              <div key={it.id} className="flex flex-col sm:flex-row sm:items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <div className="size-10 rounded-lg bg-muted grid place-items-center font-semibold text-xs flex-shrink-0">{it.name.slice(0, 2)}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span className="font-medium text-sm">{it.name}</span>
+                    {loadingAcct ? (
+                      <Badge variant="outline" className="gap-1 text-[10px] w-fit"><Loader2 className="size-3 animate-spin" />Checking</Badge>
+                    ) : connected ? (
+                      <Badge className="bg-success text-success-foreground hover:bg-success gap-1 text-[10px] w-fit"><CheckCircle2 className="size-3" />Connected</Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1 text-[10px] w-fit"><AlertTriangle className="size-3" />Not connected</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{it.desc}</p>
+                  {role === "accountant" && connected && s?.expiresAt && (
+                    <p className="text-[10px] text-muted-foreground mt-1">Token expires: {new Date(s.expiresAt).toLocaleString("en-ZA")}</p>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant={connected ? "outline" : "default"}
+                  className="w-full sm:w-auto"
+                  disabled={isBusy}
+                  onClick={() => connected ? handleDisconnect(it.id) : handleConnect(it.id)}
+                >
+                  {isBusy ? <Loader2 className="size-3.5 animate-spin" /> : connected ? "Disconnect" : "Connect"}
+                </Button>
+              </div>
+            );
+          })}
+          {EXTRA_INTEGRATIONS.map((it) => (
+            <div key={it.name} className="flex flex-col sm:flex-row sm:items-center gap-3 py-3">
               <div className="size-10 rounded-lg bg-muted grid place-items-center font-semibold text-xs flex-shrink-0">{it.name.slice(0, 2)}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="font-medium text-sm">{it.name}</span>
-                  {it.connected ? (
-                    <Badge className="bg-success text-success-foreground hover:bg-success gap-1 text-[10px] w-fit"><CheckCircle2 className="size-3" />Connected</Badge>
-                  ) : (
-                    <Badge variant="outline" className="gap-1 text-[10px] w-fit"><AlertTriangle className="size-3" />Not connected</Badge>
-                  )}
+                  <Badge className="bg-success text-success-foreground hover:bg-success gap-1 text-[10px] w-fit"><CheckCircle2 className="size-3" />Connected</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{it.desc}</p>
-                {role === "accountant" && it.connected && (
-                  <p className="text-[10px] text-muted-foreground mt-1">Last sync: {new Date(Date.now() - idx * 3600000).toLocaleString("en-ZA")}</p>
-                )}
               </div>
-              <Button
-                size="sm"
-                variant={it.connected ? "outline" : "default"}
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  setIntegrations((arr) => arr.map((x) => x.name === it.name ? { ...x, connected: !x.connected } : x));
-                  toast.success(it.connected ? `${it.name} disconnected` : `${it.name} connected`);
-                }}
-              >
-                {it.connected ? "Disconnect" : "Connect"}
-              </Button>
             </div>
           ))}
         </CardContent>
       </Card>
+
 
       <Card>
         <CardHeader>

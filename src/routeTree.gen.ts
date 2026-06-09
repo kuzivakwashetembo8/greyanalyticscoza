@@ -20,9 +20,14 @@ import { Route as AppUploadRouteImport } from './routes/_app.upload'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppAlertsRouteImport } from './routes/_app.alerts'
+import { Route as ApiAccountingStatusRouteImport } from './routes/api/accounting/status'
 import { Route as AppReportIdRouteImport } from './routes/_app.report.$id'
 import { Route as AppInspectionIdRouteImport } from './routes/_app.inspection.$id'
 import { Route as AppAnalysisIdRouteImport } from './routes/_app.analysis.$id'
+import { Route as ApiAccountingSyncProviderRouteImport } from './routes/api/accounting/sync.$provider'
+import { Route as ApiAccountingDisconnectProviderRouteImport } from './routes/api/accounting/disconnect.$provider'
+import { Route as ApiAccountingConnectProviderRouteImport } from './routes/api/accounting/connect.$provider'
+import { Route as ApiAccountingCallbackProviderRouteImport } from './routes/api/accounting/callback.$provider'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -78,6 +83,11 @@ const AppAlertsRoute = AppAlertsRouteImport.update({
   path: '/alerts',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiAccountingStatusRoute = ApiAccountingStatusRouteImport.update({
+  id: '/api/accounting/status',
+  path: '/api/accounting/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppReportIdRoute = AppReportIdRouteImport.update({
   id: '/report/$id',
   path: '/report/$id',
@@ -93,6 +103,30 @@ const AppAnalysisIdRoute = AppAnalysisIdRouteImport.update({
   path: '/analysis/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiAccountingSyncProviderRoute =
+  ApiAccountingSyncProviderRouteImport.update({
+    id: '/api/accounting/sync/$provider',
+    path: '/api/accounting/sync/$provider',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAccountingDisconnectProviderRoute =
+  ApiAccountingDisconnectProviderRouteImport.update({
+    id: '/api/accounting/disconnect/$provider',
+    path: '/api/accounting/disconnect/$provider',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAccountingConnectProviderRoute =
+  ApiAccountingConnectProviderRouteImport.update({
+    id: '/api/accounting/connect/$provider',
+    path: '/api/accounting/connect/$provider',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAccountingCallbackProviderRoute =
+  ApiAccountingCallbackProviderRouteImport.update({
+    id: '/api/accounting/callback/$provider',
+    path: '/api/accounting/callback/$provider',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -108,6 +142,11 @@ export interface FileRoutesByFullPath {
   '/analysis/$id': typeof AppAnalysisIdRoute
   '/inspection/$id': typeof AppInspectionIdRoute
   '/report/$id': typeof AppReportIdRoute
+  '/api/accounting/status': typeof ApiAccountingStatusRoute
+  '/api/accounting/callback/$provider': typeof ApiAccountingCallbackProviderRoute
+  '/api/accounting/connect/$provider': typeof ApiAccountingConnectProviderRoute
+  '/api/accounting/disconnect/$provider': typeof ApiAccountingDisconnectProviderRoute
+  '/api/accounting/sync/$provider': typeof ApiAccountingSyncProviderRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -123,6 +162,11 @@ export interface FileRoutesByTo {
   '/analysis/$id': typeof AppAnalysisIdRoute
   '/inspection/$id': typeof AppInspectionIdRoute
   '/report/$id': typeof AppReportIdRoute
+  '/api/accounting/status': typeof ApiAccountingStatusRoute
+  '/api/accounting/callback/$provider': typeof ApiAccountingCallbackProviderRoute
+  '/api/accounting/connect/$provider': typeof ApiAccountingConnectProviderRoute
+  '/api/accounting/disconnect/$provider': typeof ApiAccountingDisconnectProviderRoute
+  '/api/accounting/sync/$provider': typeof ApiAccountingSyncProviderRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -140,6 +184,11 @@ export interface FileRoutesById {
   '/_app/analysis/$id': typeof AppAnalysisIdRoute
   '/_app/inspection/$id': typeof AppInspectionIdRoute
   '/_app/report/$id': typeof AppReportIdRoute
+  '/api/accounting/status': typeof ApiAccountingStatusRoute
+  '/api/accounting/callback/$provider': typeof ApiAccountingCallbackProviderRoute
+  '/api/accounting/connect/$provider': typeof ApiAccountingConnectProviderRoute
+  '/api/accounting/disconnect/$provider': typeof ApiAccountingDisconnectProviderRoute
+  '/api/accounting/sync/$provider': typeof ApiAccountingSyncProviderRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -157,6 +206,11 @@ export interface FileRouteTypes {
     | '/analysis/$id'
     | '/inspection/$id'
     | '/report/$id'
+    | '/api/accounting/status'
+    | '/api/accounting/callback/$provider'
+    | '/api/accounting/connect/$provider'
+    | '/api/accounting/disconnect/$provider'
+    | '/api/accounting/sync/$provider'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -172,6 +226,11 @@ export interface FileRouteTypes {
     | '/analysis/$id'
     | '/inspection/$id'
     | '/report/$id'
+    | '/api/accounting/status'
+    | '/api/accounting/callback/$provider'
+    | '/api/accounting/connect/$provider'
+    | '/api/accounting/disconnect/$provider'
+    | '/api/accounting/sync/$provider'
   id:
     | '__root__'
     | '/'
@@ -188,6 +247,11 @@ export interface FileRouteTypes {
     | '/_app/analysis/$id'
     | '/_app/inspection/$id'
     | '/_app/report/$id'
+    | '/api/accounting/status'
+    | '/api/accounting/callback/$provider'
+    | '/api/accounting/connect/$provider'
+    | '/api/accounting/disconnect/$provider'
+    | '/api/accounting/sync/$provider'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -198,6 +262,11 @@ export interface RootRouteChildren {
   ApiAnalyzeRoute: typeof ApiAnalyzeRoute
   ApiExtractRoute: typeof ApiExtractRoute
   ApiReportRoute: typeof ApiReportRoute
+  ApiAccountingStatusRoute: typeof ApiAccountingStatusRoute
+  ApiAccountingCallbackProviderRoute: typeof ApiAccountingCallbackProviderRoute
+  ApiAccountingConnectProviderRoute: typeof ApiAccountingConnectProviderRoute
+  ApiAccountingDisconnectProviderRoute: typeof ApiAccountingDisconnectProviderRoute
+  ApiAccountingSyncProviderRoute: typeof ApiAccountingSyncProviderRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -279,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAlertsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/accounting/status': {
+      id: '/api/accounting/status'
+      path: '/api/accounting/status'
+      fullPath: '/api/accounting/status'
+      preLoaderRoute: typeof ApiAccountingStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/report/$id': {
       id: '/_app/report/$id'
       path: '/report/$id'
@@ -299,6 +375,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/analysis/$id'
       preLoaderRoute: typeof AppAnalysisIdRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/accounting/sync/$provider': {
+      id: '/api/accounting/sync/$provider'
+      path: '/api/accounting/sync/$provider'
+      fullPath: '/api/accounting/sync/$provider'
+      preLoaderRoute: typeof ApiAccountingSyncProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/accounting/disconnect/$provider': {
+      id: '/api/accounting/disconnect/$provider'
+      path: '/api/accounting/disconnect/$provider'
+      fullPath: '/api/accounting/disconnect/$provider'
+      preLoaderRoute: typeof ApiAccountingDisconnectProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/accounting/connect/$provider': {
+      id: '/api/accounting/connect/$provider'
+      path: '/api/accounting/connect/$provider'
+      fullPath: '/api/accounting/connect/$provider'
+      preLoaderRoute: typeof ApiAccountingConnectProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/accounting/callback/$provider': {
+      id: '/api/accounting/callback/$provider'
+      path: '/api/accounting/callback/$provider'
+      fullPath: '/api/accounting/callback/$provider'
+      preLoaderRoute: typeof ApiAccountingCallbackProviderRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -333,17 +437,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAnalyzeRoute: ApiAnalyzeRoute,
   ApiExtractRoute: ApiExtractRoute,
   ApiReportRoute: ApiReportRoute,
+  ApiAccountingStatusRoute: ApiAccountingStatusRoute,
+  ApiAccountingCallbackProviderRoute: ApiAccountingCallbackProviderRoute,
+  ApiAccountingConnectProviderRoute: ApiAccountingConnectProviderRoute,
+  ApiAccountingDisconnectProviderRoute: ApiAccountingDisconnectProviderRoute,
+  ApiAccountingSyncProviderRoute: ApiAccountingSyncProviderRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
