@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProdReadinessRouteImport } from './routes/prod-readiness'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -29,6 +30,11 @@ import { Route as ApiAccountingDisconnectProviderRouteImport } from './routes/ap
 import { Route as ApiAccountingConnectProviderRouteImport } from './routes/api/accounting/connect.$provider'
 import { Route as ApiAccountingCallbackProviderRouteImport } from './routes/api/accounting/callback.$provider'
 
+const ProdReadinessRoute = ProdReadinessRouteImport.update({
+  id: '/prod-readiness',
+  path: '/prod-readiness',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -131,6 +137,7 @@ const ApiAccountingCallbackProviderRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/prod-readiness': typeof ProdReadinessRoute
   '/alerts': typeof AppAlertsRoute
   '/dashboard': typeof AppDashboardRoute
   '/settings': typeof AppSettingsRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/prod-readiness': typeof ProdReadinessRoute
   '/alerts': typeof AppAlertsRoute
   '/dashboard': typeof AppDashboardRoute
   '/settings': typeof AppSettingsRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/prod-readiness': typeof ProdReadinessRoute
   '/_app/alerts': typeof AppAlertsRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/prod-readiness'
     | '/alerts'
     | '/dashboard'
     | '/settings'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/prod-readiness'
     | '/alerts'
     | '/dashboard'
     | '/settings'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/prod-readiness'
     | '/_app/alerts'
     | '/_app/dashboard'
     | '/_app/settings'
@@ -258,6 +270,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ProdReadinessRoute: typeof ProdReadinessRoute
   ApiAlertsRoute: typeof ApiAlertsRoute
   ApiAnalyzeRoute: typeof ApiAnalyzeRoute
   ApiExtractRoute: typeof ApiExtractRoute
@@ -271,6 +284,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/prod-readiness': {
+      id: '/prod-readiness'
+      path: '/prod-readiness'
+      fullPath: '/prod-readiness'
+      preLoaderRoute: typeof ProdReadinessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -433,6 +453,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ProdReadinessRoute: ProdReadinessRoute,
   ApiAlertsRoute: ApiAlertsRoute,
   ApiAnalyzeRoute: ApiAnalyzeRoute,
   ApiExtractRoute: ApiExtractRoute,
@@ -446,13 +467,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
