@@ -53,7 +53,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/73b07bb0-4595-44e4-bf91-54184716fa93/id-preview-8e5d20a6--cde6abf0-023f-42e1-9d7e-0fe88e5d998c.lovable.app-1780419196494.png" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [{ rel: "stylesheet", href: appCss }, { rel: "manifest", href: "/manifest.json" }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
