@@ -201,7 +201,7 @@ function AnalysisPage() {
           </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/report/$id" params={{ id: reportId }}>
-              Open mock report
+              Open Shell Report
             </Link>
           </Button>
           {/* Inspection Export — only enabled once all 4 agents have finished. */}

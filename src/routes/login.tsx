@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useApp } from "@/context/AppContext";
 import { toast } from "sonner";
+import { PWAInstallButton } from "@/components/pwa/PWAInstallButton";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in · Grey Analytics" }] }),
@@ -87,6 +88,9 @@ function LoginPage() {
               <div className="font-semibold">Grey Analytics</div>
             </div>
             <h2 className="text-2xl font-semibold">{mode === "signin" ? "Welcome back" : "Create your account"}</h2>
+            <div className="mt-2 mb-4">
+              <PWAInstallButton size="sm" variant="outline" className="w-full text-xs" />
+            </div>
             <p className="text-sm text-muted-foreground mt-1">{mode === "signin" ? "Sign in to see your latest audit." : "Start finding leaks in minutes."}</p>
 
             {/* Google sign-in (managed by Lovable Cloud broker) */}

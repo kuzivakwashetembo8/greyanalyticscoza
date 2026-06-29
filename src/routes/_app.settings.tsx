@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, AlertTriangle, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { PWAInstallButton } from "@/components/pwa/PWAInstallButton";
 import {
   listConnections,
   startConnect,
@@ -87,9 +88,12 @@ function SettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1">Account, integrations, and alert preferences.</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
+          <p className="text-muted-foreground mt-1">Account, integrations, and alert preferences.</p>
+        </div>
+        <PWAInstallButton size="sm" />
       </div>
 
       <Card>

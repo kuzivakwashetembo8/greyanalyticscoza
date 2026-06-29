@@ -235,7 +235,7 @@ function UploadPage() {
               }}
             >
               <FileText className="size-4 mr-1.5" />
-              View mock report
+              View Shell Report
             </Button>
             <Button
               onClick={() => {

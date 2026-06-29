@@ -2,6 +2,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { LayoutDashboard, Upload, Bell, Settings, LogOut, ShieldCheck, Lock, Menu, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useApp } from "@/context/AppContext";
+import { PWAInstallButton } from "@/components/pwa/PWAInstallButton";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -73,6 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex items-center gap-2"><ShieldCheck className="size-3.5 text-success" /> POPIA compliant</div>
             <div className="flex items-center gap-2"><Lock className="size-3.5 text-success" /> AES-256 · TLS 1.3</div>
           </div>
+          <PWAInstallButton variant="outline" className="w-full text-xs h-8" />
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-sidebar-accent text-sidebar-foreground/80"
