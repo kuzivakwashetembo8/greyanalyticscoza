@@ -50,6 +50,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<MockUser | null>(null);
   const [role, setRoleState] = useState<Role>("owner");
   const [loading, setLoading] = useState(true);
+  const [uploadLimit, setUploadLimitState] = useState(5);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -96,7 +97,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTimeout(() => {
           hydrateProfile(session.user.id, session.user.email ?? "").then(() => {
             if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-              seedDemoData("My Business");
+              // No mock data seed per strict instructions
             }
           });
         }, 0);
@@ -111,7 +112,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         hydrateProfile(session.user.id, session.user.email ?? "")
-          .then(() => seedDemoData("My Business"))
           .finally(() => setLoading(false));
       } else {
         setLoading(false);
@@ -119,7 +119,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [hydrateProfile, seedDemoData]);
+  }, [hydrateProfile]);
 
   const value = useMemo<AppState>(() => ({
     user,
@@ -159,6 +159,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return {};
     },
     logout: async () => { await supabase.auth.signOut(); },
+    uploadLimit, setUploadLimit: setUploadLimitState,
     uploads, addUpload: (u) => setUploads((prev) => [u, ...prev]),
     reports,
     addReport: (r) => { setReports((prev) => [r, ...prev]); return r; },

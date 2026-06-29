@@ -39,9 +39,6 @@ function WelcomePage() {
         </div>
 
         <div className="relative z-10 my-auto py-12 lg:py-0 space-y-6 max-w-lg">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sidebar-primary/20 text-sidebar-primary text-xs font-semibold">
-            <Sparkles className="size-3.5" /> Next-Gen AI Financial Auditing
-          </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-[1.15] tracking-tight">
             Detect money leaks in your business in plain English.
           </h1>
@@ -76,7 +73,7 @@ function WelcomePage() {
             <Button size="lg" className="w-full gap-2 text-base font-semibold" asChild>
               <Link to="/login">Proceed to Portal <ArrowRight className="size-4" /></Link>
             </Button>
-            <PWAInstallButton className="w-full" />
+            <PWAInstallButton className="w-full hover:bg-transparent hover:text-foreground" />
           </div>
         </div>
       </div>

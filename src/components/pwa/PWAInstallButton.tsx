@@ -36,7 +36,7 @@ export function PWAInstallButton({ className, variant = "outline", size = "defau
   };
 
   return (
-    <Button variant={variant} size={size} onClick={handleInstall} className={className}>
+    <Button variant={variant} size={size} onClick={handleInstall} className={`${className || ""} hover:bg-background hover:text-foreground`}>
       <Download className="size-4 mr-2" /> Install App
     </Button>
   );

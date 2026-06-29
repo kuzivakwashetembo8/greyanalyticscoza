@@ -60,7 +60,7 @@ function LoginPage() {
         <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(800px 400px at 80% 10%, var(--color-sidebar-primary), transparent 60%)" }} aria-hidden />
         <div className="relative">
           <div className="flex items-center gap-2.5">
-            <div className="size-10 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground grid place-items-center font-bold text-lg">G</div>
+            <img src="/icon-512x512.png" alt="Grey Analytics" className="size-10 rounded-lg object-cover" />
             <div className="font-semibold text-lg">Grey Analytics</div>
           </div>
         </div>
@@ -68,9 +68,9 @@ function LoginPage() {
           <h1 className="text-3xl xl:text-4xl font-bold leading-tight">Find money leaks in your business in plain English.</h1>
           <p className="text-sidebar-foreground/80">Four AI agents check your Xero, Sage, QuickBooks and bank statements. We tell you what to fix and how much you'll save.</p>
           <ul className="space-y-3 text-sm">
-            <li className="flex items-center gap-3"><Sparkles className="size-4 text-sidebar-primary" /> 5-page audit report in under 48 hours</li>
-            <li className="flex items-center gap-3"><Sparkles className="size-4 text-sidebar-primary" /> WhatsApp alerts for any leak over R2,000</li>
-            <li className="flex items-center gap-3"><Sparkles className="size-4 text-sidebar-primary" /> Built for Eastern Cape SMMEs</li>
+            <li className="flex items-center gap-3"><span className="size-1.5 rounded-full bg-sidebar-primary" /> 5-page audit report in under 48 hours</li>
+            <li className="flex items-center gap-3"><span className="size-1.5 rounded-full bg-sidebar-primary" /> WhatsApp alerts for any leak over R2,000</li>
+            <li className="flex items-center gap-3"><span className="size-1.5 rounded-full bg-sidebar-primary" /> Built for Eastern Cape SMMEs</li>
           </ul>
         </div>
         <div className="relative flex items-center gap-4 text-xs text-sidebar-foreground/70">
@@ -84,7 +84,7 @@ function LoginPage() {
         <Card className="w-full max-w-md border-border shadow-sm">
           <CardContent className="p-6 sm:p-8">
             <div className="lg:hidden flex items-center gap-2 mb-6">
-              <div className="size-9 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold">G</div>
+              <img src="/icon-512x512.png" alt="Grey Analytics" className="size-9 rounded-lg object-cover" />
               <div className="font-semibold">Grey Analytics</div>
             </div>
             <h2 className="text-2xl font-semibold">{mode === "signin" ? "Welcome back" : "Create your account"}</h2>

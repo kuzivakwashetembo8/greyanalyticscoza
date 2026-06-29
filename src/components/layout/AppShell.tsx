@@ -74,7 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex items-center gap-2"><ShieldCheck className="size-3.5 text-success" /> POPIA compliant</div>
             <div className="flex items-center gap-2"><Lock className="size-3.5 text-success" /> AES-256 · TLS 1.3</div>
           </div>
-          <PWAInstallButton variant="outline" className="w-full text-xs h-8" />
+          <PWAInstallButton variant="outline" className="w-full text-xs h-8 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground font-semibold border-none" />
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-sidebar-accent text-sidebar-foreground/80"
@@ -99,21 +99,25 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             <div className="ml-auto flex items-center gap-2">
               <div className="hidden sm:flex items-center gap-1 p-1 bg-muted rounded-full" role="group" aria-label="Role">
-                {(["owner", "accountant"] as const).map((r) => (
+                {(["Free", "Premium"] as const).map((r, idx) => (
                   <button
                     key={r}
-                    onClick={() => setRole(r)}
+                    onClick={() => {
+                      if (r === "Premium") {
+                        toast.info("Premium Tier: Coming Soon", { description: "Unlocks more document support (up to 100), comprehensive forensic analysis, and priority queue." });
+                      }
+                    }}
                     className={cn(
                       "px-3 py-1 text-xs font-medium rounded-full transition",
-                      role === r ? "bg-card shadow-sm text-foreground" : "text-muted-foreground",
+                      idx === 0 ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
                     )}
-                    aria-pressed={role === r}
+                    aria-pressed={idx === 0}
                   >
-                    {r === "owner" ? "SMME Owner" : "Accountant"}
+                    {r}
                   </button>
                 ))}
               </div>
-              <Link to="/alerts" className="relative p-2 rounded-md hover:bg-muted" aria-label={`Alerts (${unread} unread)`}>
+              <Link to="/alerts" className="relative p-2 rounded-md hover:bg-muted" aria-label="Alerts">
                 <Bell className="size-5" />
                 {unread > 0 && <span className="absolute top-1 right-1 size-2 rounded-full bg-destructive" />}
               </Link>

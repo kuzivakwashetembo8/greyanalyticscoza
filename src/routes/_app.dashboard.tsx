@@ -31,24 +31,7 @@ function DashboardPage() {
   const totalSavings = latest?.roi.potentialSavings ?? 0;
 
   const runAudit = () => {
-    setAuditing(true);
-    setStep(0);
-    const t = setInterval(() => {
-      setStep((s) => {
-        if (s + 1 >= AUDIT_STEPS.length) {
-          clearInterval(t);
-          setTimeout(() => {
-            const r = mockReport(user?.businessName);
-            addReport(r);
-            addAlertsFromReport(r);
-            toast.success("New audit report ready", { description: `${r.leaks.length} leaks found · ${formatZAR(r.roi.potentialSavings)} recoverable.` });
-            navigate({ to: "/report/$id", params: { id: r.id } });
-          }, 500);
-          return s + 1;
-        }
-        return s + 1;
-      });
-    }, 800);
+    navigate({ to: "/upload" });
   };
 
   return (
@@ -56,13 +39,11 @@ function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Sawubona, {user?.name?.split(" ")[0]} 👋</h1>
-          <p className="text-muted-foreground mt-1">Here's what Grey Analytics found for {user?.businessName}.</p>
+          <p className="text-muted-foreground mt-1">Real-time financial inspection portal for {user?.businessName || "your business"}.</p>
         </div>
         <Button onClick={runAudit} disabled={auditing} size="lg" className="gap-2">
           {auditing ? <>
-            <span className="size-4 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
-            {AUDIT_STEPS[Math.min(step, AUDIT_STEPS.length - 1)]}
-          </> : <><Sparkles className="size-4" />Run new audit</>}
+          </> : <>Run new audit</>}
         </Button>
       </div>
 
@@ -71,17 +52,9 @@ function DashboardPage() {
         <Kpi label="Recoverable cash" value={formatZAR(totalSavings)} icon={<TrendingUp className="size-4" />} accent="text-success" />
         <Kpi label="Leaks found" value={(latest?.leaks.length ?? 0).toString()} icon={<AlertTriangle className="size-4" />} accent="text-destructive" />
         <Kpi label="Reports" value={reports.length.toString()} icon={<FileText className="size-4" />} accent="text-primary" />
-        <Kpi label="Last audit" value={latest ? new Date(latest.generatedAt).toLocaleDateString("en-ZA", { day: "2-digit", month: "short" }) : "—"} icon={<Sparkles className="size-4" />} accent="text-accent-foreground" />
+        <Kpi label="Last audit" value={latest ? new Date(latest.generatedAt).toLocaleDateString("en-ZA", { day: "2-digit", month: "short" }) : "None"} icon={<FileText className="size-4" />} accent="text-accent-foreground" />
       </div>
 
-      {role === "accountant" && (
-        <Card className="border-accent/40 bg-accent/10">
-          <CardContent className="p-4 flex items-center gap-3 text-sm">
-            <Sparkles className="size-4 text-accent-foreground" />
-            <span><strong>Accountant view:</strong> integration logs, audit trails, and VAT reconciliation panels are visible in Settings.</span>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">

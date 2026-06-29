@@ -48,11 +48,22 @@ function UploadPage() {
 
   const addFiles = (incoming: File[]) => {
     setError(null);
+    const limit = (user as any)?.uploadLimit || 5;
     setFiles((prev) => {
+      if (prev.length >= limit) {
+        toast.error(`Upload limit reached (${limit} files max). Update in Settings.`);
+        return prev;
+      }
       const key = (f: File) => `${f.name}__${f.size}`;
       const seen = new Set(prev.map(key));
       const merged = [...prev];
-      for (const f of incoming) if (!seen.has(key(f))) merged.push(f);
+      for (const f of incoming) {
+        if (merged.length >= limit) {
+          toast.error(`Limited to ${limit} files. Upgrade tier or adjust in Settings.`);
+          break;
+        }
+        if (!seen.has(key(f))) merged.push(f);
+      }
       return merged;
     });
   };
@@ -174,7 +185,7 @@ function UploadPage() {
             <div className="rounded-lg border border-border bg-card p-5">
               <div className="flex items-center gap-3 mb-4">
                 <div className="size-10 rounded-full bg-primary/10 grid place-items-center pulse-ring">
-                  <div className="size-3 rounded-full bg-primary animate-pulse" />
+                  <div className="size-4 rounded border-2 border-primary animate-spin" />
                 </div>
                 <div className="flex-1">
                   <div className="font-semibold">Siphon Cypher is reading your files…</div>
@@ -235,7 +246,7 @@ function UploadPage() {
               }}
             >
               <FileText className="size-4 mr-1.5" />
-              View Shell Report
+              View Extracted Data
             </Button>
             <Button
               onClick={() => {
