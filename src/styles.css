@@ -292,3 +292,8 @@ a[href^="https://lovable.dev/projects/0d171e46-a2ec-4c61-96e7-1a2d79e0c0b6"] {
   }
   .ga-no-print { display: none !important; }
 }
+
+@keyframes demoBar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}

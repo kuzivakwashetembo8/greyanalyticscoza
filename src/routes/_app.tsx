@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { useApp } from "@/context/AppContext";
+import { DemoTour } from "@/components/demo/DemoTour";
 
 export const Route = createFileRoute("/_app")({ component: AppLayout });
 
@@ -19,6 +20,7 @@ function AppLayout() {
   return (
     <AppShell>
       <Outlet />
+      <DemoTour />
     </AppShell>
   );
 }
