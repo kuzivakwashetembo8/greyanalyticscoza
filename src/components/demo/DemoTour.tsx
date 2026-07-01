@@ -1,16 +1,16 @@
 // ============================================================================
-// DemoTour — automated end-to-end walkthrough that runs once per session
-// after a fresh login. It uploads five pre-bundled ABC Technologies PDFs,
-// runs Siphon Cypher extraction, kicks off Transmit Assessment, opens the
-// report and finishes on the Alerts page. Each step is narrated by a
-// centre-screen tooltip card so the viewer can watch production behaviour.
+// DemoTour — automated end-to-end walkthrough that DRIVES THE REAL UI on
+// screen: it navigates to /upload, injects five demo PDFs into the actual
+// file-drop input, clicks the real "Start" button so users watch Siphon
+// Cypher's progress bar animate, then clicks "Analyze" in the success
+// modal, watches the 4 agents complete on /analysis, and finishes on the
+// Alerts page. Narration is a small, corner-anchored caption chip so it
+// never covers the working area.
 // ============================================================================
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import { useApp } from "@/context/AppContext";
-import { mockReport } from "@/lib/mock";
-import { detectKind, extractClientSide, extractServerSide } from "@/lib/extract/client";
 import { Sparkles, X } from "lucide-react";
 
 const DEMO_FILES = [
@@ -21,7 +21,7 @@ const DEMO_FILES = [
   "ABC_Technologies_Employee_Expense_Claims_Jan-Jun_2026.pdf",
 ];
 
-const SESSION_FLAG = "grey_demo_tour_v1";
+const SESSION_FLAG = "grey_demo_tour_v2";
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -31,19 +31,40 @@ async function fetchDemoFile(name: string): Promise<File> {
   return new File([blob], name, { type: "application/pdf" });
 }
 
-interface Step {
-  title: string;
-  body: string;
+interface Step { title: string; body: string }
+
+// Poll the DOM until a selector matches or timeout expires.
+async function waitFor<T extends Element>(selector: string, timeout = 6000): Promise<T | null> {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const el = document.querySelector<T>(selector);
+    if (el) return el;
+    await wait(120);
+  }
+  return null;
+}
+
+// Find a button whose visible text includes `label` (case-insensitive).
+async function waitForButton(label: string, timeout = 6000): Promise<HTMLButtonElement | null> {
+  const start = Date.now();
+  const needle = label.toLowerCase();
+  while (Date.now() - start < timeout) {
+    const btns = Array.from(document.querySelectorAll<HTMLButtonElement>("button, a[role=button], a"));
+    const hit = btns.find((b) => (b.textContent ?? "").toLowerCase().includes(needle) && !b.hasAttribute("disabled"));
+    if (hit) return hit as HTMLButtonElement;
+    await wait(150);
+  }
+  return null;
 }
 
 export function DemoTour() {
-  const { user, addUpload, addReport, addAlertsFromReport, setExtractedText } = useApp();
-  const navigate = useNavigate();
+  const { user } = useApp();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const startedRef = useRef(false);
 
   const [step, setStep] = useState<Step | null>(null);
   const [running, setRunning] = useState(false);
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
     if (!user || startedRef.current) return;
@@ -58,72 +79,113 @@ export function DemoTour() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, pathname]);
 
-  const show = async (title: string, body: string, holdMs = 2600) => {
+  const show = (title: string, body: string) => {
+    if (cancelledRef.current) return;
     setStep({ title, body });
-    await wait(holdMs);
+  };
+
+  // Click a real button by its label. Returns true if clicked.
+  const clickByLabel = async (label: string): Promise<boolean> => {
+    const btn = await waitForButton(label);
+    if (!btn || cancelledRef.current) return false;
+    btn.scrollIntoView({ behavior: "smooth", block: "center" });
+    await wait(400);
+    btn.click();
+    return true;
+  };
+
+  // Navigate by clicking the real sidebar link, so the user visibly sees
+  // the click land on the menu item.
+  const goTo = async (hrefOrLabel: string): Promise<boolean> => {
+    const start = Date.now();
+    while (Date.now() - start < 4000) {
+      const link = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"))
+        .find((a) => a.getAttribute("href") === hrefOrLabel
+          || (a.textContent ?? "").trim().toLowerCase() === hrefOrLabel.toLowerCase());
+      if (link && !cancelledRef.current) {
+        link.scrollIntoView({ behavior: "smooth", block: "center" });
+        await wait(300);
+        link.click();
+        return true;
+      }
+      await wait(150);
+    }
+    return false;
   };
 
   async function runTour() {
     setRunning(true);
     try {
-      await show(
-        "Welcome to Grey Analytics",
-        `Hi ${user?.name ?? "there"} — sit back. I will run a full audit on a sample company, ABC Technologies, so you can see how the platform works end to end.`,
-        3800,
-      );
+      show("Welcome demo", `Hi ${user?.name ?? "there"} — I will drive the app on-screen using a sample company, ABC Technologies.`);
+      await wait(3200);
 
-      await show("Step 1 · Uploading business documents", "Loading five real PDFs into Siphon Cypher: bank statement, general ledger, supplier invoices, vendor master and expense claims.", 2800);
-      navigate({ to: "/upload" });
-      await wait(1200);
+      // Step 1 — visibly navigate to Upload via the sidebar link.
+      show("Opening Upload", "Clicking the Upload link in the sidebar.");
+      await goTo("/upload");
+      await wait(900);
 
-      // Extract text from every demo file, exactly as the manual upload flow.
-      const chunks: string[] = [];
+      // Step 2 — fetch the five demo PDFs, then push them through the REAL
+      // file input so the FileDropZone list fills in front of the user.
+      show("Loading sample documents", "Fetching five ABC Technologies PDFs from the demo bundle.");
+      const files: File[] = [];
       for (const name of DEMO_FILES) {
-        await show(`Reading ${name.replace("ABC_Technologies_", "").replace(/_/g, " ").replace(".pdf", "")}`, "Client-side PDF parsing with OCR fallback on the server if needed.", 1600);
-        const file = await fetchDemoFile(name);
-        const kind = detectKind(file);
-        let res = await extractClientSide(file);
-        if (!res.ok) res = await extractServerSide(file);
-        if (res.ok) {
-          chunks.push(`=== ${file.name} ===\n${res.text}`);
-          addUpload({
-            id: "up_" + Math.random().toString(36).slice(2, 9),
-            fileName: file.name,
-            size: (file.size / 1024).toFixed(0) + " KB",
-            uploadedAt: new Date(),
-            status: "ready",
-            source: kind === "pdf" ? "PDF" : "PDF",
-          });
-        }
+        files.push(await fetchDemoFile(name));
+      }
+      if (cancelledRef.current) return;
+
+      const input = await waitFor<HTMLInputElement>('input[type="file"]');
+      if (!input) throw new Error("Upload input not found");
+
+      show("Dropping files into Siphon Cypher", "You are watching the real drop-zone accept every PDF, one by one.");
+      // Feed the files one at a time so the list animates in.
+      for (const f of files) {
+        if (cancelledRef.current) return;
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        // Native property setter — React tracks the input.files getter.
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "files")?.set;
+        setter?.call(input, dt.files);
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        await wait(650);
       }
 
-      const text = chunks.join("\n\n");
-      const report = mockReport(user?.businessName ?? "ABC Technologies");
-      addReport(report);
-      addAlertsFromReport(report);
-      setExtractedText(report.id, text);
+      // Step 3 — click the real Start button.
+      await wait(600);
+      show("Starting extraction", "Clicking Start so Siphon Cypher parses every page.");
+      const started = await clickByLabel("Start");
+      if (!started) throw new Error("Start button not found");
 
-      await show("Step 2 · Transmit Assessment", `Handing ${text.length.toLocaleString()} characters to four specialist AI agents: Finance, Operations, Compliance and Strategy. They run in parallel on Groq.`, 3200);
-      navigate({ to: "/analysis/$id", params: { id: report.id } });
-      // Give agents a moment to spin up + partially complete before moving.
-      await wait(2200);
-      await show("Watching the agents work", "Each card lights up as an agent finishes. Findings surface with severity, evidence and recommended fixes.", 4200);
-      await wait(4000);
-      await show("Alerts fired automatically", "As soon as all four agents finish, high-severity anomalies are pushed via WhatsApp (Twilio) and Email (Resend) in the background.", 3400);
+      // Wait until the success dialog appears (Analyze button is inside it).
+      show("Extracting text", "Real client-side PDF parsing is running now. Watch the progress bar above.");
+      const analyze = await waitForButton("Analyze", 60_000);
+      if (!analyze) throw new Error("Extraction did not finish in time");
 
-      await show("Step 3 · Audit report", "Opening the plain-English audit report with charts, evidence and remediation plans, ready for export.", 2600);
-      navigate({ to: "/report/$id", params: { id: report.id } });
-      await wait(5000);
+      show("Extraction complete", "Success modal opened. Clicking Analyze to hand the text to the four AI agents.");
+      await wait(1400);
+      analyze.scrollIntoView({ behavior: "smooth", block: "center" });
+      await wait(300);
+      analyze.click();
 
-      await show("Step 4 · Alerts inbox", "Every dispatched alert is logged here so owners and accountants can audit what was sent, when and to whom.", 2800);
-      navigate({ to: "/alerts" });
-      await wait(3800);
+      // On /analysis/$id — let the agent cards animate to done.
+      show("Transmit Assessment", "Four Groq agents (Finance, Operations, Compliance, Strategy) run in parallel. Each card lights up as it finishes.");
+      await wait(9000);
 
-      await show("Demo complete", "That is the full flow: upload, extract, analyse, alert, report. Head back to the dashboard to try it with your own documents.", 4200);
-      navigate({ to: "/dashboard" });
+      show("Alerts fired", "High-severity findings are being pushed via WhatsApp and Email in the background.");
+      await wait(3500);
+
+      // Step 4 — visibly click into the Alerts page via the sidebar.
+      show("Opening Alerts", "Clicking Alerts in the sidebar to review every dispatch.");
+      await goTo("/alerts");
+      await wait(4200);
+
+      // Step 5 — back to the dashboard via the sidebar.
+      show("Back to Dashboard", "Handing control back to you. Upload your own documents to try it live.");
+      await goTo("/dashboard");
+      await wait(2600);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Demo interrupted";
-      await show("Demo interrupted", msg, 3000);
+      show("Demo interrupted", msg);
+      await wait(3000);
     } finally {
       setStep(null);
       setRunning(false);
@@ -134,28 +196,30 @@ export function DemoTour() {
   if (!step && !running) return null;
 
   return createPortal(
-    <div className="fixed inset-x-0 bottom-6 z-[9999] flex justify-center px-4 pointer-events-none">
+    // Compact caption chip anchored to the top-right so it never covers the
+    // working area the tour is driving.
+    <div className="fixed top-4 right-4 z-[9999] max-w-[280px] pointer-events-none">
       {step && (
-        <div className="pointer-events-auto max-w-md w-full rounded-xl border border-primary/30 bg-card/95 backdrop-blur-md shadow-2xl p-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex items-start gap-3">
-            <div className="size-9 rounded-lg bg-primary/10 grid place-items-center shrink-0">
-              <Sparkles className="size-4 text-primary" />
+        <div className="pointer-events-auto rounded-lg border border-primary/30 bg-card/95 backdrop-blur-md shadow-xl p-3 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-start gap-2">
+            <div className="size-6 rounded-md bg-primary/10 grid place-items-center shrink-0">
+              <Sparkles className="size-3 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold uppercase tracking-wide text-primary">Live demo</div>
-              <div className="font-semibold text-sm mt-0.5">{step.title}</div>
-              <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{step.body}</p>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-primary">Live demo</div>
+              <div className="font-semibold text-xs mt-0.5">{step.title}</div>
+              <p className="text-xs text-muted-foreground mt-1 leading-snug">{step.body}</p>
             </div>
             <button
               type="button"
               aria-label="End demo"
-              onClick={() => { setStep(null); setRunning(false); startedRef.current = true; }}
+              onClick={() => { cancelledRef.current = true; setStep(null); setRunning(false); }}
               className="text-muted-foreground hover:text-foreground transition"
             >
-              <X className="size-4" />
+              <X className="size-3.5" />
             </button>
           </div>
-          <div className="mt-3 h-1 rounded-full bg-primary/10 overflow-hidden">
+          <div className="mt-2 h-0.5 rounded-full bg-primary/10 overflow-hidden">
             <div className="h-full bg-primary animate-[demoBar_2.6s_linear_infinite]" style={{ width: "40%" }} />
           </div>
         </div>
