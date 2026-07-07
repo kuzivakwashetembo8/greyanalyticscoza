@@ -8,6 +8,7 @@ import type { AgentId, AgentResult } from "@/lib/analysis/types";
 import type { ReportPageNarrative } from "@/lib/report/types";
 import { REPORT_SYSTEM_PROMPT } from "@/lib/report/prompt";
 import { mockNarrative } from "@/lib/report/mock";
+import { requireBearer } from "@/lib/api/auth-helpers.server";
 
 const MODEL = "llama-3.3-70b-versatile"; // strong instruction-following on Groq
 const TIMEOUT_MS = 90_000;
@@ -66,6 +67,8 @@ export const Route = createFileRoute("/api/report")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await requireBearer(request);
+        if (!auth.ok) return auth.response;
         let body: { businessName?: unknown; analyses?: unknown };
         try { body = (await request.json()) as typeof body; }
         catch { return json({ success: false, error: "Invalid JSON body" }, 400); }
