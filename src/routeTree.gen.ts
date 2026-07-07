@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsOfServiceRouteImport } from './routes/terms-of-service'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProdReadinessRouteImport } from './routes/prod-readiness'
 import { Route as ProdRouteImport } from './routes/prod'
 import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
@@ -38,6 +39,11 @@ import { Route as ApiAccountingCallbackProviderRouteImport } from './routes/api/
 const TermsOfServiceRoute = TermsOfServiceRouteImport.update({
   id: '/terms-of-service',
   path: '/terms-of-service',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProdReadinessRoute = ProdReadinessRouteImport.update({
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/prod': typeof ProdRoute
   '/prod-readiness': typeof ProdReadinessRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/terms-of-service': typeof TermsOfServiceRoute
   '/alerts': typeof AppAlertsRoute
   '/dashboard': typeof AppDashboardRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByTo {
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/prod': typeof ProdRoute
   '/prod-readiness': typeof ProdReadinessRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/terms-of-service': typeof TermsOfServiceRoute
   '/alerts': typeof AppAlertsRoute
   '/dashboard': typeof AppDashboardRoute
@@ -225,6 +233,7 @@ export interface FileRoutesById {
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/prod': typeof ProdRoute
   '/prod-readiness': typeof ProdReadinessRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/terms-of-service': typeof TermsOfServiceRoute
   '/_app/alerts': typeof AppAlertsRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -253,6 +262,7 @@ export interface FileRouteTypes {
     | '/privacy-policy'
     | '/prod'
     | '/prod-readiness'
+    | '/reset-password'
     | '/terms-of-service'
     | '/alerts'
     | '/dashboard'
@@ -279,6 +289,7 @@ export interface FileRouteTypes {
     | '/privacy-policy'
     | '/prod'
     | '/prod-readiness'
+    | '/reset-password'
     | '/terms-of-service'
     | '/alerts'
     | '/dashboard'
@@ -306,6 +317,7 @@ export interface FileRouteTypes {
     | '/privacy-policy'
     | '/prod'
     | '/prod-readiness'
+    | '/reset-password'
     | '/terms-of-service'
     | '/_app/alerts'
     | '/_app/dashboard'
@@ -334,6 +346,7 @@ export interface RootRouteChildren {
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   ProdRoute: typeof ProdRoute
   ProdReadinessRoute: typeof ProdReadinessRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   TermsOfServiceRoute: typeof TermsOfServiceRoute
   ApiAlertsRoute: typeof ApiAlertsRoute
   ApiAnalyzeRoute: typeof ApiAnalyzeRoute
@@ -353,6 +366,13 @@ declare module '@tanstack/react-router' {
       path: '/terms-of-service'
       fullPath: '/terms-of-service'
       preLoaderRoute: typeof TermsOfServiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prod-readiness': {
@@ -558,6 +578,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyPolicyRoute: PrivacyPolicyRoute,
   ProdRoute: ProdRoute,
   ProdReadinessRoute: ProdReadinessRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   TermsOfServiceRoute: TermsOfServiceRoute,
   ApiAlertsRoute: ApiAlertsRoute,
   ApiAnalyzeRoute: ApiAnalyzeRoute,

@@ -10,7 +10,13 @@ import { toast } from "sonner";
 import { PWAInstallButton } from "@/components/pwa/PWAInstallButton";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Sign in · Grey Analytics" }] }),
+  head: () => ({ meta: [
+    { title: "Sign in · Grey Analytics" },
+    { name: "description", content: "Sign in to Grey Analytics to run AI audits, view reports, and manage alerts for your business." },
+    { property: "og:title", content: "Sign in · Grey Analytics" },
+    { property: "og:description", content: "Sign in to Grey Analytics to run AI audits, view reports, and manage alerts for your business." },
+    { name: "robots", content: "noindex" },
+  ]}),
   component: LoginPage,
 });
 
@@ -123,6 +129,11 @@ function LoginPage() {
                 {mode === "signin" ? "Create an account" : "Sign in"}
               </button>
             </div>
+            {mode === "signin" && (
+              <div className="mt-2 text-center text-sm">
+                <Link to="/forgot-password" className="text-muted-foreground hover:text-foreground hover:underline">Forgot your password?</Link>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
