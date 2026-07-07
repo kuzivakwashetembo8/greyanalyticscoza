@@ -17,6 +17,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { requireBearer } from "@/lib/api/auth-helpers.server";
 
 const MIN_CHARS = 10;
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB cap mirrors the upload UI.
@@ -150,6 +151,8 @@ export const Route = createFileRoute("/api/extract")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await requireBearer(request);
+        if (!auth.ok) return auth.response;
         let form: FormData;
         try {
           form = await request.formData();
