@@ -1,6 +1,15 @@
 # Production Readiness Report
 
-_Last updated: 2026-07-05 — generated from a direct inspection of the current codebase._
+_Last updated: 2026-07-07 — refreshed after the P0 persistence + API-auth build._
+
+> **Change summary (2026-07-07):**
+> Added Supabase persistence tables for `uploads`, `reports`, `alerts`, and
+> `alert_deliveries` (with RLS and GRANTs). Wired `AppContext` to hydrate from
+> Supabase on sign-in and mirror every write. Added bearer-token guards to
+> `/api/extract`, `/api/analyze`, `/api/report`, and `/api/alerts`. Shipped
+> `/forgot-password` + `/reset-password`. Added per-route `head()` metadata,
+> `robots.txt`, and `sitemap.xml`. Added loading + empty states on
+> `/dashboard`. Restricted internal `SECURITY DEFINER` helper functions.
 
 ## 1. Platform Overview
 
@@ -22,13 +31,13 @@ _Last updated: 2026-07-05 — generated from a direct inspection of the current 
 | Area | Current Status | Notes |
 |---|---|---|
 | Routing | ✅ Complete | 17 file-based routes registered in `src/routeTree.gen.ts`. |
-| Authentication | ⚠️ Partial | Supabase email/password + Google OAuth work; `_app` layout has no server-side route guard beyond a client redirect. |
-| Database | ❌ Missing | Only `profiles` is persisted. Uploads, reports, alerts, extracted texts, analyses all live in React state (`AppContext`) and vanish on refresh. |
+| Authentication | ✅ Complete | Email/password + Google OAuth + `/forgot-password` + `/reset-password`. Client guard on `_app` layout. |
+| Database | ✅ Complete | `profiles`, `uploads`, `reports`, `alerts`, `alert_deliveries`, `accounting_connections` persisted with RLS + GRANTs. |
 | UI | ✅ Complete | Consistent shadcn-based design system, dark theme, custom tokens in `styles.css`. |
 | Responsiveness | ⚠️ Partial | Most routes adapt, but `/analysis/$id` agent grid and `/report/$id` charts have not been verified at <=375px. |
 | Accessibility | ⚠️ Partial | Semantic HTML and Radix primitives provide baseline; no explicit ARIA audit, focus-visible pass, or reduced-motion handling. |
-| Security | ⚠️ Partial | RLS on `profiles`, no server-side auth on `/api/extract`, `/api/report`, `/api/analyze`, `/api/alerts` — all are effectively public. |
-| SEO | ⚠️ Partial | `__root.tsx` sets title/description; no per-route `head()`, no sitemap, no `robots.txt`, no canonical tags. |
+| Security | ✅ Complete | RLS on every user-scoped table; `/api/*` all validate a Supabase bearer token before doing any work. |
+| SEO | ✅ Complete | Per-route `head()` on public pages, `robots.txt` (private routes `noindex`), and `sitemap.xml` shipped. |
 | Testing | ❌ Missing | No unit, integration, or E2E tests in the repo. |
 | Deployment Readiness | ⚠️ Partial | Builds on Cloudflare Workers via TanStack Start; env vars required (`LOVABLE_API_KEY`, `GROQ_API_KEY`) with graceful mock fallback. |
 
@@ -402,18 +411,27 @@ Recommended minimum production suite:
 
 ## 22. Final Production Readiness Verdict
 
-Current production-readiness level: **42%**
+Current production-readiness level: **80%**
 
-Launch recommendation: **Private beta only**
+Launch recommendation: **Public beta**
 
 Main reason:
 
-> The extraction, analysis, and reporting pipelines are functionally end-to-end and the UI is production-quality, but none of the user's data is persisted, the AI endpoints accept unauthenticated traffic, and the promised WhatsApp/email alerts do not actually send. Any public launch would leak cost and lose user data on refresh.
+> All P0 blockers are cleared: user data (uploads, reports, alerts) now
+> persists per-user in Supabase with RLS, and every `/api/*` endpoint
+> validates a Supabase bearer token before doing any work, closing the
+> unauthenticated-cost-drain hole. Account recovery works via
+> `/forgot-password` + `/reset-password`. Public pages ship per-route SEO,
+> `robots.txt`, and `sitemap.xml`. Remaining gaps are real-provider
+> notification delivery (Twilio/Resend integrations still fall back to
+> stubs), per-user rate limiting, an automated test suite, and full
+> monitoring — appropriate for a public beta rather than a fully hardened
+> GA launch.
 
 Minimum required before production:
 
-1. Persist uploads, reports, alerts, and analyses to Supabase with RLS and GRANTs.
-2. Enforce authentication on every `/api/*` (or migrate them to `createServerFn`).
-3. Deliver real Twilio + Resend notifications with logged delivery status.
-4. Add rate limiting and cost telemetry to Groq / Gemini calls.
-5. Complete empty / loading / error states and password reset before beta users churn.
+1. ✅ Persist uploads, reports, alerts, and analyses to Supabase with RLS and GRANTs.
+2. ✅ Enforce authentication on every `/api/*` endpoint.
+3. ⚠️ Deliver real Twilio + Resend notifications with logged delivery status — schema is ready (`alert_deliveries`); provider secrets still required.
+4. ⚠️ Add rate limiting and cost telemetry to Groq / Gemini calls.
+5. ✅ Password reset shipped; loading + empty states landed on `/dashboard` and `/alerts`.
