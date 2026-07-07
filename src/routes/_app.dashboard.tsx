@@ -1,12 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Sparkles, ArrowRight, TrendingUp, FileText, AlertTriangle, Upload as UploadIcon } from "lucide-react";
+import { ArrowRight, TrendingUp, FileText, AlertTriangle, Upload as UploadIcon } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UploadStatusCard, ReportListCard, LeakSummaryCard } from "@/components/dashboard/DashboardCards";
-import { mockReport, formatZAR } from "@/lib/mock";
-import { toast } from "sonner";
+import { formatZAR } from "@/lib/mock";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · Grey Analytics" }] }),
@@ -22,10 +21,9 @@ const AUDIT_STEPS = [
 ];
 
 function DashboardPage() {
-  const { user, reports, addReport, addAlertsFromReport, role } = useApp();
+  const { user, reports, loading } = useApp();
   const navigate = useNavigate();
-  const [auditing, setAuditing] = useState(false);
-  const [step, setStep] = useState(0);
+  const [auditing] = useState(false);
 
   const latest = reports[0];
   const totalSavings = latest?.roi.potentialSavings ?? 0;
@@ -33,6 +31,47 @@ function DashboardPage() {
   const runAudit = () => {
     navigate({ to: "/upload" });
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-live="polite">
+        <div className="h-8 w-64 bg-muted animate-pulse rounded" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-24 rounded-lg bg-muted animate-pulse" />
+          ))}
+        </div>
+        <div className="h-64 rounded-lg bg-muted animate-pulse" />
+      </div>
+    );
+  }
+
+  if (reports.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Sawubona, {user?.name?.split(" ")[0]} 👋</h1>
+          <p className="text-muted-foreground mt-1">Welcome to {user?.businessName || "your business"}.</p>
+        </div>
+        <Card className="border-dashed">
+          <CardContent className="py-14 text-center space-y-4">
+            <div className="size-14 rounded-full bg-primary/10 grid place-items-center mx-auto">
+              <UploadIcon className="size-6 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">No audits yet</h2>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto mt-1">
+                Upload a bank statement, general ledger, or Xero export to run your first audit. Your reports will appear here.
+              </p>
+            </div>
+            <Button asChild className="gap-2">
+              <Link to="/upload"><UploadIcon className="size-4" /> Upload your first document</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
