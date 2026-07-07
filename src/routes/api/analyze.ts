@@ -22,6 +22,7 @@ import { agentMeta, type AgentId, type AgentResult } from "@/lib/analysis/types"
 import { PROMPTS } from "@/lib/analysis/prompts";
 import { mockAgentResult } from "@/lib/analysis/mock";
 import { summariseForAgent, tokensToChars } from "@/lib/analysis/summarise";
+import { requireBearer } from "@/lib/api/auth-helpers.server";
 
 const TIMEOUT_MS = 60_000;
 const MAX_ATTEMPTS = 3;
@@ -171,6 +172,8 @@ export const Route = createFileRoute("/api/analyze")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const auth = await requireBearer(request);
+        if (!auth.ok) return auth.response;
         let body: { agent?: unknown; text?: unknown };
         try { body = (await request.json()) as typeof body; }
         catch { return json({ success: false, error: "Invalid JSON body" }, 400); }
