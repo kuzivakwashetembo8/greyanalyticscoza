@@ -1,9 +1,10 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, useSearch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { ShieldCheck, Lock, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { useApp } from "@/context/AppContext";
 import { toast } from "sonner";
@@ -17,28 +18,43 @@ export const Route = createFileRoute("/login")({
     { property: "og:description", content: "Sign in to Grey Analytics to run AI audits, view reports, and manage alerts for your business." },
     { name: "robots", content: "noindex" },
   ]}),
+  validateSearch: (s: Record<string, unknown>): { redirect?: string } => ({
+    redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+  }),
   component: LoginPage,
 });
 
 function LoginPage() {
   const { user, signIn, signUp, signInWithGoogle } = useApp();
   const navigate = useNavigate();
+  const search = useSearch({ from: "/login" });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [businessName, setBusinessName] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
 
-  // Redirect once auth state hydrates a user.
-  useEffect(() => { if (user) navigate({ to: "/dashboard" }); }, [user, navigate]);
+  // Redirect once auth state hydrates a user. Honour ?redirect=<safe path>.
+  useEffect(() => {
+    if (!user) return;
+    const raw = search.redirect;
+    const safe = raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
+    navigate({ to: safe });
+  }, [user, navigate, search.redirect]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === "signup" && !acceptTerms) {
+      toast.error("Please accept the Terms of Service and Privacy Policy.");
+      return;
+    }
     setLoading(true);
     try {
       const res = mode === "signin"
         ? await signIn(email, password)
-        : await signUp(email, password, businessName || "My Business");
+        : await signUp(email, password, businessName || "My Business", { whatsapp });
       if (res.error) {
         toast.error(res.error);
       } else if (mode === "signup") {
@@ -110,6 +126,12 @@ function LoginPage() {
                   <Input id="biz" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g. Bay Auto Repairs" required />
                 </div>
               )}
+              {mode === "signup" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="wa">WhatsApp number (optional)</Label>
+                  <Input id="wa" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+27 82 000 0000" />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@business.co.za" autoComplete="email" required />
@@ -118,6 +140,15 @@ function LoginPage() {
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={6} required />
               </div>
+              {mode === "signup" && (
+                <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <Checkbox checked={acceptTerms} onCheckedChange={(v) => setAcceptTerms(v === true)} className="mt-0.5" />
+                  <span>
+                    I agree to the <Link to="/terms-of-service" className="text-primary hover:underline">Terms of Service</Link>{" "}
+                    and <Link to="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link>.
+                  </span>
+                </label>
+              )}
               <Button type="submit" className="w-full gap-2" disabled={loading}>
                 {loading ? <><span className="size-4 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />Please wait…</> : <>{mode === "signin" ? "Sign in" : "Create account"} <ArrowRight className="size-4" /></>}
               </Button>
