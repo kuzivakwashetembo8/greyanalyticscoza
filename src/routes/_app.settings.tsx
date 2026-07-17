@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { deleteMyAccount } from "@/lib/account.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -37,15 +39,31 @@ const EXTRA_INTEGRATIONS = [
 ];
 
 function SettingsPage() {
-  const { user, logout, role } = useApp();
+  const { user, logout, role, updateProfile } = useApp();
   const navigate = useNavigate();
   const [whatsapp, setWhatsapp] = useState(user?.whatsapp ?? "");
   const [name, setName] = useState(user?.name ?? "");
   const [biz, setBiz] = useState(user?.businessName ?? "");
-  const [notify, setNotify] = useState(true);
+  const [notifyWa, setNotifyWa] = useState(user?.notifyWhatsapp ?? true);
+  const [notifyEmail, setNotifyEmail] = useState(user?.notifyEmail ?? true);
+  const [uploadLimit, setUploadLimit] = useState<number>(user?.uploadLimit ?? 5);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [acct, setAcct] = useState<ConnectionStatus[]>([]);
   const [loadingAcct, setLoadingAcct] = useState(true);
   const [busy, setBusy] = useState<AccountingProvider | null>(null);
+  const deleteAccount = useServerFn(deleteMyAccount);
+
+  // Keep local state in sync when profile hydrates.
+  useEffect(() => {
+    if (!user) return;
+    setWhatsapp(user.whatsapp ?? "");
+    setName(user.name);
+    setBiz(user.businessName);
+    setNotifyWa(user.notifyWhatsapp);
+    setNotifyEmail(user.notifyEmail);
+    setUploadLimit(user.uploadLimit);
+  }, [user]);
 
   // Hydrate accounting connection status + surface OAuth callback results.
   useEffect(() => {
@@ -85,6 +103,41 @@ function SettingsPage() {
     } finally { setBusy(null); }
   }
 
+  async function handleSaveAccount(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    const res = await updateProfile({
+      name: name.trim(),
+      business_name: biz.trim(),
+      whatsapp: whatsapp.trim() || null,
+      upload_limit: Math.min(100, Math.max(1, uploadLimit || 5)),
+    });
+    setSaving(false);
+    if (res.error) toast.error(res.error);
+    else toast.success("Account updated");
+  }
+
+  async function handleSaveNotifications(next: { notify_whatsapp?: boolean; notify_email?: boolean }) {
+    const res = await updateProfile(next);
+    if (res.error) toast.error(res.error);
+  }
+
+  async function handleDeleteAccount() {
+    if (!confirm("Delete your account and all data? This cannot be undone.")) return;
+    if (!confirm("Are you absolutely sure? All reports, uploads and alerts will be permanently removed.")) return;
+    setDeleting(true);
+    try {
+      await deleteAccount({});
+      toast.success("Account deleted");
+      await logout();
+      navigate({ to: "/" });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -102,12 +155,21 @@ function SettingsPage() {
           <CardDescription>How we identify you and your business.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid sm:grid-cols-2 gap-4" onSubmit={(e) => { e.preventDefault(); toast.success("Account updated"); }}>
+          <form className="grid sm:grid-cols-2 gap-4" onSubmit={handleSaveAccount}>
             <div className="space-y-1.5"><Label htmlFor="name">Full name</Label><Input id="name" value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div className="space-y-1.5"><Label htmlFor="biz">Business name</Label><Input id="biz" value={biz} onChange={(e) => setBiz(e.target.value)} /></div>
-            <div className="space-y-1.5"><Label htmlFor="email">Email</Label><Input id="email" type="email" defaultValue={user?.email} /></div>
+            <div className="space-y-1.5"><Label htmlFor="email">Email</Label><Input id="email" type="email" value={user?.email ?? ""} readOnly disabled /></div>
             <div className="space-y-1.5"><Label htmlFor="wa">WhatsApp number</Label><Input id="wa" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+27 ..." /></div>
-            <div className="sm:col-span-2 flex justify-end"><Button type="submit">Save changes</Button></div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="ulim">Upload limit (1 – 100)</Label>
+              <Input id="ulim" type="number" min={1} max={100} value={uploadLimit}
+                onChange={(e) => setUploadLimit(Number(e.target.value))} />
+            </div>
+            <div className="sm:col-span-2 flex justify-end">
+              <Button type="submit" disabled={saving}>
+                {saving ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}Save changes
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -185,7 +247,16 @@ function SettingsPage() {
               <Label htmlFor="wa-alerts">WhatsApp alerts for leaks over R2,000</Label>
               <p className="text-xs text-muted-foreground mt-1">Sent within 24 hours of detection.</p>
             </div>
-            <Switch id="wa-alerts" checked={notify} onCheckedChange={setNotify} className="flex-shrink-0" />
+            <Switch id="wa-alerts" checked={notifyWa} className="flex-shrink-0"
+              onCheckedChange={(v) => { setNotifyWa(v); void handleSaveNotifications({ notify_whatsapp: v }); }} />
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <Label htmlFor="email-alerts">Email alerts for high-severity findings</Label>
+              <p className="text-xs text-muted-foreground mt-1">Delivered via Resend to your account email.</p>
+            </div>
+            <Switch id="email-alerts" checked={notifyEmail} className="flex-shrink-0"
+              onCheckedChange={(v) => { setNotifyEmail(v); void handleSaveNotifications({ notify_email: v }); }} />
           </div>
         </CardContent>
       </Card>
@@ -199,14 +270,9 @@ function SettingsPage() {
           <CardDescription>Delete your account and all data (POPIA deleted within 30 days).</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="destructive" className="gap-2" onClick={() => {
-            if (confirm("Delete your demo account?")) {
-              toast.success("Account deleted (demo).");
-              logout();
-              navigate({ to: "/login" });
-            }
-          }}>
-            <Trash2 className="size-4" />Delete my account
+          <Button variant="destructive" className="gap-2" onClick={handleDeleteAccount} disabled={deleting}>
+            {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+            Delete my account
           </Button>
         </CardContent>
       </Card>

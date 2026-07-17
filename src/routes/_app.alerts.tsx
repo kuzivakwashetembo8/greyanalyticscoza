@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useApp } from "@/context/AppContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CheckCheck } from "lucide-react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -26,11 +29,21 @@ export const Route = createFileRoute("/_app/alerts")({
 });
 
 function AlertsPage() {
+  const { markAllAlertsRead, alerts: dbAlerts } = useApp();
   // Hydrate from localStorage so alert history persists across sessions.
   const [alerts, setAlerts] = useState<SentAlert[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "sent" | "failed">("all");
+  const [channel, setChannel] = useState<"all" | "whatsapp" | "email">("all");
 
   useEffect(() => { setAlerts(loadSentAlerts()); }, []);
+
+  const visible = useMemo(() => alerts.filter((a) =>
+    (filter === "all" || a.status === filter) &&
+    (channel === "all" || a.channel === channel),
+  ), [alerts, filter, channel]);
+
+  const unreadDb = dbAlerts.filter((a) => !a.read).length;
 
   const handleRetry = async (row: SentAlert) => {
     setBusyId(row.id);
@@ -62,28 +75,53 @@ function AlertsPage() {
             WhatsApp &amp; Email alerts sent automatically after each Transmit Assessment.
           </p>
         </div>
-        {alerts.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleClear} className="gap-2">
-            <Trash2 className="size-4" />Clear history
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {unreadDb > 0 && (
+            <Button variant="outline" size="sm" onClick={markAllAlertsRead} className="gap-2">
+              <CheckCheck className="size-4" />Mark all read ({unreadDb})
+            </Button>
+          )}
+          {alerts.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleClear} className="gap-2">
+              <Trash2 className="size-4" />Clear history
+            </Button>
+          )}
+        </div>
       </div>
 
       {alerts.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <SummaryCard label="Total" value={alerts.length} />
-          <SummaryCard label="Delivered" value={sentCount} tone="success" />
-          <SummaryCard label="Failed" value={failedCount} tone={failedCount ? "destructive" : "muted"} />
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <SummaryCard label="Total" value={alerts.length} />
+            <SummaryCard label="Delivered" value={sentCount} tone="success" />
+            <SummaryCard label="Failed" value={failedCount} tone={failedCount ? "destructive" : "muted"} />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="sent">Delivered</TabsTrigger>
+                <TabsTrigger value="failed">Failed</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Tabs value={channel} onValueChange={(v) => setChannel(v as typeof channel)}>
+              <TabsList>
+                <TabsTrigger value="all">Any channel</TabsTrigger>
+                <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+                <TabsTrigger value="email">Email</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </>
       )}
 
-      {alerts.length === 0 ? (
+      {visible.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-14 text-center space-y-3">
             <div className="size-12 rounded-full bg-muted grid place-items-center mx-auto">
               <MessageCircle className="size-5 text-muted-foreground" />
             </div>
-            <h2 className="text-lg font-semibold">No alerts yet</h2>
+            <h2 className="text-lg font-semibold">{alerts.length === 0 ? "No alerts yet" : "No alerts match the filter"}</h2>
             <p className="text-muted-foreground text-sm max-w-md mx-auto">
               When Transmit Assessment finds an anomaly with severity <span className="font-medium">high</span> or
               an amount over <span className="font-medium">R2,000</span>, we'll send a WhatsApp + Email alert and
@@ -102,7 +140,7 @@ function AlertsPage() {
           </CardHeader>
           <CardContent className="p-0">
             <ul className="divide-y divide-border">
-              {alerts.map((a) => (
+              {visible.map((a) => (
                 <li key={a.id} className="p-4 flex flex-col sm:flex-row sm:items-start gap-3">
                   <div
                     className={cn(

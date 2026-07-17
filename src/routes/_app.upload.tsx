@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { FileDropZone } from "@/components/upload/FileDropZone";
 import { useApp } from "@/context/AppContext";
-import { mockReport } from "@/lib/mock";
+import { emptyReport } from "@/lib/mock";
+import { saveReport } from "@/lib/persistence";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ const STEPS = [
 ] as const;
 
 function UploadPage() {
-  const { addUpload, addReport, addAlertsFromReport, setExtractedText, user } = useApp();
+  const { addUpload, addReport, setExtractedText, user } = useApp();
   const navigate = useNavigate();
 
   const [files, setFiles] = useState<File[]>([]);
@@ -131,11 +132,17 @@ function UploadPage() {
           source: ext === "pdf" ? "PDF" : ext === "csv" ? "CSV" : ext.startsWith("xls") ? "Excel" : "Image",
         });
       });
-      const r = mockReport(user?.businessName);
+      const r = emptyReport(user?.businessName);
       addReport(r);
-      addAlertsFromReport(r);
       const text = chunks.join("\n\n");
       setExtractedText(r.id, text);
+      // Persist the shell + extracted text server-side immediately so a
+      // refresh mid-analysis can resume without re-uploading.
+      void saveReport(r, {
+        status: "extracted",
+        extracted_text: text,
+        upload_ids: files.map((f) => f.name),
+      });
 
       toast.success("Text extracted successfully", { description: `${files.length} file(s) processed.` });
       setDone({ reportId: r.id, chars: text.length, files: files.length });

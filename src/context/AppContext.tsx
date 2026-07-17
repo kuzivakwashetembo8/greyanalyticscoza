@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { mockAlerts, mockReport, mockUploads, type Alert, type MockUser, type Report, type Role, type Upload } from "@/lib/mock";
+import { type Alert, type MockUser, type Report, type Role, type Upload } from "@/lib/mock";
 import type { AgentId, AgentResult } from "@/lib/analysis/types";
 import {
-  loadAlerts, loadReports, loadUploads,
-  markAlertReadRemote, saveAlerts, saveReport, saveUpload,
+  loadAlerts, loadReports, loadReportExtras, loadUploads,
+  markAlertReadRemote, markAllAlertsReadRemote,
+  saveAgentResults, saveUpload,
+  updateProfile, type ProfilePatch,
 } from "@/lib/persistence";
 
 // ============================================================================
@@ -23,16 +25,17 @@ import {
 // ============================================================================
 
 interface AppState {
-  user: MockUser | null;
+  user: (MockUser & { uploadLimit: number; notifyWhatsapp: boolean; notifyEmail: boolean; plan: string }) | null;
   role: Role;
   loading: boolean;
   setRole: (r: Role) => void;
   /** @deprecated kept for backwards compatibility — use signIn/signUp instead */
   login: (email: string) => void;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string, businessName: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, businessName: string, opts?: { whatsapp?: string; termsVersion?: string }) => Promise<{ error?: string }>;
   signInWithGoogle: () => Promise<{ error?: string }>;
   logout: () => Promise<void>;
+  updateProfile: (patch: ProfilePatch) => Promise<{ error?: string }>;
   uploads: Upload[];
   addUpload: (u: Upload) => void;
   reports: Report[];
@@ -41,6 +44,7 @@ interface AppState {
   alerts: Alert[];
   addAlertsFromReport: (r: Report) => void;
   markAlertRead: (id: string) => void;
+  markAllAlertsRead: () => void;
   extractedTexts: Record<string, string>;
   setExtractedText: (reportId: string, text: string) => void;
   analyses: Record<string, Partial<Record<AgentId, AgentResult>>>;
@@ -51,46 +55,36 @@ interface AppState {
 const Ctx = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<MockUser | null>(null);
+  const [user, setUser] = useState<AppState["user"]>(null);
   const [role, setRoleState] = useState<Role>("owner");
   const [loading, setLoading] = useState(true);
-  const [uploadLimit, setUploadLimitState] = useState(5);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [extractedTexts, setExtractedTexts] = useState<Record<string, string>>({});
   const [analyses, setAnalyses] = useState<Record<string, Partial<Record<AgentId, AgentResult>>>>({});
 
-  // Load profile row and shape into MockUser. Deferred from auth callbacks
-  // via setTimeout(0) to avoid the Supabase deadlock pattern.
   const hydrateProfile = useCallback(async (userId: string, fallbackEmail: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("id,email,name,business_name,role")
+      .select("id,email,name,business_name,role,whatsapp,notify_whatsapp,notify_email,upload_limit,plan")
       .eq("id", userId)
       .maybeSingle();
 
-    const mapped: MockUser = {
+    const mapped: AppState["user"] = {
       id: userId,
       email: data?.email ?? fallbackEmail,
       name: data?.name ?? fallbackEmail.split("@")[0],
       businessName: data?.business_name ?? "My Business",
       role: (data?.role as Role) ?? "owner",
-      whatsapp: "+27 82 000 0000",
+      whatsapp: data?.whatsapp ?? "",
+      uploadLimit: data?.upload_limit ?? 5,
+      notifyWhatsapp: data?.notify_whatsapp ?? true,
+      notifyEmail: data?.notify_email ?? true,
+      plan: data?.plan ?? "free",
     };
     setUser(mapped);
     setRoleState(mapped.role);
-  }, []);
-
-  // Seed mock demo data once when a real user signs in.
-  const seedDemoData = useCallback((businessName: string) => {
-    setUploads((prev) => (prev.length === 0 ? mockUploads(4) : prev));
-    setReports((prev) => {
-      if (prev.length > 0) return prev;
-      const seed = mockReport(businessName);
-      setAlerts(mockAlerts(seed.leaks));
-      return [seed];
-    });
   }, []);
 
   useEffect(() => {
@@ -101,12 +95,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTimeout(() => {
           hydrateProfile(session.user.id, session.user.email ?? "").then(() => {
             if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-              // Hydrate persisted state from Supabase.
-              Promise.all([loadUploads(), loadReports(), loadAlerts()]).then(([u, r, a]) => {
-                setUploads(u);
-                setReports(r);
-                setAlerts(a);
-              }).catch(() => { /* stay empty; RLS or offline */ });
+              Promise.all([loadUploads(), loadReports(), loadAlerts(), loadReportExtras()])
+                .then(([u, r, a, extras]) => {
+                  setUploads(u);
+                  setReports(r);
+                  setAlerts(a);
+                  const texts: Record<string, string> = {};
+                  const ans: Record<string, Partial<Record<AgentId, AgentResult>>> = {};
+                  for (const [id, ex] of Object.entries(extras)) {
+                    if (ex.extracted_text) texts[id] = ex.extracted_text;
+                    if (ex.agent_results && Object.keys(ex.agent_results).length) ans[id] = ex.agent_results;
+                  }
+                  setExtractedTexts(texts);
+                  setAnalyses(ans);
+                }).catch(() => { /* stay empty */ });
             }
           });
         }, 0);
@@ -137,7 +139,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRole: (r) => {
       setRoleState(r);
       setUser((u) => (u ? { ...u, role: r } : u));
-      // Persist role choice to profile (best-effort).
       if (user) {
         supabase.from("profiles").update({ role: r }).eq("id", user.id).then(() => {});
       }
@@ -147,15 +148,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       return error ? { error: error.message } : {};
     },
-    signUp: async (email, password, businessName) => {
+    signUp: async (email, password, businessName, opts) => {
       const redirectUrl = `${window.location.origin}/dashboard`;
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: redirectUrl,
-          // Trigger handle_new_user reads these from raw_user_meta_data.
-          data: { business_name: businessName, name: email.split("@")[0], role: "owner" },
+          data: {
+            business_name: businessName,
+            name: email.split("@")[0],
+            role: "owner",
+            whatsapp: opts?.whatsapp ?? "",
+            terms_version: opts?.termsVersion ?? "v1-2026-07",
+          },
         },
       });
       return error ? { error: error.message } : {};
@@ -168,27 +174,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return {};
     },
     logout: async () => { await supabase.auth.signOut(); },
-    uploadLimit, setUploadLimit: setUploadLimitState,
+    updateProfile: async (patch) => {
+      const res = await updateProfile(patch);
+      if (!res.error) {
+        // Optimistically reflect in local user state.
+        setUser((u) => u ? {
+          ...u,
+          name: patch.name ?? u.name,
+          businessName: patch.business_name ?? u.businessName,
+          whatsapp: patch.whatsapp ?? u.whatsapp,
+          notifyWhatsapp: patch.notify_whatsapp ?? u.notifyWhatsapp,
+          notifyEmail: patch.notify_email ?? u.notifyEmail,
+          uploadLimit: patch.upload_limit ?? u.uploadLimit,
+          plan: patch.plan ?? u.plan,
+        } : u);
+      }
+      return res;
+    },
     uploads,
     addUpload: (u) => { setUploads((prev) => [u, ...prev]); void saveUpload(u); },
     reports,
-    addReport: (r) => { setReports((prev) => [r, ...prev]); void saveReport(r); return r; },
+    addReport: (r) => { setReports((prev) => [r, ...prev]); return r; },
     getReport: (id) => reports.find((r) => r.id === id) ?? reports[0],
     alerts,
-    addAlertsFromReport: (r) => {
-      const fresh = mockAlerts(r.leaks);
-      setAlerts((prev) => [...fresh, ...prev]);
-      void saveAlerts(fresh);
-    },
+    addAlertsFromReport: (_r) => { /* real alerts are created by the /api/alerts pipeline */ },
     markAlertRead: (id) => {
       setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, read: true } : a)));
       void markAlertReadRemote(id);
+    },
+    markAllAlertsRead: () => {
+      setAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
+      void markAllAlertsReadRemote();
     },
     extractedTexts,
     setExtractedText: (reportId, text) => setExtractedTexts((prev) => ({ ...prev, [reportId]: text })),
     analyses,
     setAgentResult: (reportId, agent, result) =>
-      setAnalyses((prev) => ({ ...prev, [reportId]: { ...(prev[reportId] ?? {}), [agent]: result } })),
+      setAnalyses((prev) => {
+        const merged = { ...(prev[reportId] ?? {}), [agent]: result };
+        // Persist server-side so results survive refreshes.
+        void saveAgentResults(reportId, merged);
+        return { ...prev, [reportId]: merged };
+      }),
     clearAnalysis: (reportId) =>
       setAnalyses((prev) => { const next = { ...prev }; delete next[reportId]; return next; }),
   }), [user, role, loading, uploads, reports, alerts, extractedTexts, analyses]);

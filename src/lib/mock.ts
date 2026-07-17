@@ -226,3 +226,24 @@ export function mockAlerts(leaks: Leak[]): Alert[] {
 export function formatZAR(n: number) {
   return "R" + n.toLocaleString("en-ZA", { maximumFractionDigits: 0 });
 }
+
+/**
+ * Real (non-mock) empty report shell created immediately after extraction.
+ * Findings, ROI, monthly and executive summary stay empty until Transmit
+ * Assessment fills them in. Uses a real UUID so DB upserts stay in sync
+ * with the in-memory report object.
+ */
+export function emptyReport(businessName?: string): Report {
+  return {
+    id: (globalThis.crypto?.randomUUID?.() ?? "rep_" + id()),
+    title: "Grey Analytics Audit Report",
+    businessName: businessName ?? "Your business",
+    generatedAt: new Date(),
+    executiveSummary: "",
+    leaks: [],
+    fixSteps: [],
+    roi: { currentSpend: 0, potentialSavings: 0, recoveryMonths: 0 },
+    readability: { grade: 10, label: "" },
+    monthly: [],
+  };
+}

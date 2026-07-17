@@ -97,7 +97,9 @@ export type Database = {
       alerts: {
         Row: {
           amount: number
+          channel: string | null
           created_at: string
+          delivery_status: string
           id: string
           leak_id: string | null
           leak_type: string
@@ -110,7 +112,9 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          channel?: string | null
           created_at?: string
+          delivery_status?: string
           id?: string
           leak_id?: string | null
           leak_type: string
@@ -123,7 +127,9 @@ export type Database = {
         }
         Update: {
           amount?: number
+          channel?: string | null
           created_at?: string
+          delivery_status?: string
           id?: string
           leak_id?: string | null
           leak_type?: string
@@ -144,59 +150,184 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          created_at: string
+          detail: Json
+          event: string
+          id: string
+          ip: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json
+          event: string
+          id?: string
+          ip?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detail?: Json
+          event?: string
+          id?: string
+          ip?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      finding_states: {
+        Row: {
+          assignee: string | null
+          finding_key: string
+          id: string
+          note: string | null
+          report_id: string
+          state: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignee?: string | null
+          finding_key: string
+          id?: string
+          note?: string | null
+          report_id: string
+          state?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignee?: string | null
+          finding_key?: string
+          id?: string
+          note?: string | null
+          report_id?: string
+          state?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finding_states_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          accepted_terms_at: string | null
+          accepted_terms_version: string | null
           business_name: string | null
           created_at: string
           email: string | null
           id: string
           name: string | null
+          notify_email: boolean
+          notify_whatsapp: boolean
+          plan: string
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
+          upload_limit: number
+          whatsapp: string | null
         }
         Insert: {
+          accepted_terms_at?: string | null
+          accepted_terms_version?: string | null
           business_name?: string | null
           created_at?: string
           email?: string | null
           id: string
           name?: string | null
+          notify_email?: boolean
+          notify_whatsapp?: boolean
+          plan?: string
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
+          upload_limit?: number
+          whatsapp?: string | null
         }
         Update: {
+          accepted_terms_at?: string | null
+          accepted_terms_version?: string | null
           business_name?: string | null
           created_at?: string
           email?: string | null
           id?: string
           name?: string | null
+          notify_email?: boolean
+          notify_whatsapp?: boolean
+          plan?: string
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
+          upload_limit?: number
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      rate_limits: {
+        Row: {
+          bucket: string
+          count: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          bucket: string
+          count?: number
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          bucket?: string
+          count?: number
+          user_id?: string
+          window_start?: string
         }
         Relationships: []
       }
       reports: {
         Row: {
+          agent_results: Json
           business_name: string
           created_at: string
+          extracted_text: string | null
           id: string
+          methodology: Json
           payload: Json
+          status: string
           title: string
+          upload_ids: string[]
           user_id: string
         }
         Insert: {
+          agent_results?: Json
           business_name: string
           created_at?: string
+          extracted_text?: string | null
           id?: string
+          methodology?: Json
           payload: Json
+          status?: string
           title?: string
+          upload_ids?: string[]
           user_id: string
         }
         Update: {
+          agent_results?: Json
           business_name?: string
           created_at?: string
+          extracted_text?: string | null
           id?: string
+          methodology?: Json
           payload?: Json
+          status?: string
           title?: string
+          upload_ids?: string[]
           user_id?: string
         }
         Relationships: []
@@ -230,6 +361,33 @@ export type Database = {
           size?: string | null
           source?: string | null
           status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      usage_events: {
+        Row: {
+          amount: number
+          cost_cents: number
+          created_at: string
+          id: string
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          cost_cents?: number
+          created_at?: string
+          id?: string
+          kind: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          cost_cents?: number
+          created_at?: string
+          id?: string
+          kind?: string
           user_id?: string
         }
         Relationships: []
