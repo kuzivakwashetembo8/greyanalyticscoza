@@ -3,7 +3,13 @@ import { ArrowLeft, Scale } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/terms-of-service")({
-  head: () => ({ meta: [{ title: "Terms of Service · Grey Analytics" }] }),
+  head: () => ({
+    meta: [
+      { title: "Terms of Service · Grey Analytics" },
+      { name: "description", content: "The terms governing access to and use of the Grey Analytics service." },
+    ],
+    links: [{ rel: "canonical", href: "https://greyanalytics.co.za/terms-of-service" }],
+  }),
   component: TermsOfServicePage,
 });
 
@@ -20,7 +26,7 @@ function TermsOfServicePage() {
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Terms of Service</h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            Last Updated: {new Date().toLocaleDateString("en-ZA", { month: "long", year: "numeric" })}
+            Last Updated: 19 July 2026
           </p>
         </div>
 
@@ -73,7 +79,35 @@ function TermsOfServicePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">5. Limitation of Liability</CardTitle>
+            <CardTitle className="text-xl">5. Acceptable Use</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
+            <p>You must not upload information you are not authorised to process, attempt to bypass account limits or security controls, interfere with the service, introduce malicious code, reverse engineer protected service components, or use outputs for unlawful or misleading purposes.</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">6. Accounts, Availability & Termination</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
+            <p>You are responsible for safeguarding your account credentials and activity performed through your account. We may suspend access to protect users, investigate misuse, comply with law, or maintain the service.</p>
+            <p>You may stop using the service at any time and may request account deletion through Settings. Features that depend on external providers may be unavailable when those providers or required deployment credentials are unavailable.</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">7. Intellectual Property</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
+            <p>You retain ownership of documents and information you submit. Grey Analytics and its licensors retain ownership of the application, branding, software, prompts, interfaces, and service materials. We grant you a limited, revocable right to use the service in accordance with these Terms.</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">8. Limitation of Liability</CardTitle>
           </CardHeader>
           <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
             <p>
@@ -84,12 +118,22 @@ function TermsOfServicePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">6. Governing Law & Jurisdiction</CardTitle>
+            <CardTitle className="text-xl">9. Governing Law & Jurisdiction</CardTitle>
           </CardHeader>
           <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
             <p>
               These Terms shall be governed by and construed in accordance with the laws of the Republic of South Africa. Any disputes arising hereunder shall be subject to the exclusive jurisdiction of the South African courts.
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">10. Changes & Contact</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
+            <p>We may update these Terms as the service changes. Material updates will be published on this page with a revised date. Continued use after an update constitutes acceptance of the revised Terms.</p>
+            <p>Questions about these Terms may be sent to <span className="text-foreground font-mono">legal@greyanalytics.co.za</span>.</p>
           </CardContent>
         </Card>
       </div>

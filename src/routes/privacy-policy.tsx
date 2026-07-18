@@ -3,7 +3,13 @@ import { ArrowLeft, ShieldCheck, Lock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/privacy-policy")({
-  head: () => ({ meta: [{ title: "Privacy Policy · Grey Analytics" }] }),
+  head: () => ({
+    meta: [
+      { title: "Privacy Policy · Grey Analytics" },
+      { name: "description", content: "How Grey Analytics collects, uses, protects, retains, and deletes personal and financial information." },
+    ],
+    links: [{ rel: "canonical", href: "https://greyanalytics.co.za/privacy-policy" }],
+  }),
   component: PrivacyPolicyPage,
 });
 
@@ -20,7 +26,7 @@ function PrivacyPolicyPage() {
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Privacy Policy</h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            Effective Date: {new Date().toLocaleDateString("en-ZA", { month: "long", year: "numeric" })}
+            Effective Date: 19 July 2026
           </p>
         </div>
 
@@ -89,7 +95,37 @@ function PrivacyPolicyPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">6. Contact & Data Protection Officer</CardTitle>
+            <CardTitle className="text-xl">6. How We Use Information</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
+            <p>We use account and document information to authenticate users, provide document extraction and AI-assisted analysis, generate reports, apply usage limits, deliver enabled notifications, prevent abuse, diagnose failures, and comply with legal obligations.</p>
+            <p>We do not sell personal information. We do not use uploaded financial documents for unrelated advertising.</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">7. Your Privacy Rights</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
+            <p>Subject to applicable law, you may ask whether we hold your personal information, request access or correction, object to certain processing, withdraw optional notification consent, or request deletion.</p>
+            <p>You may also lodge a complaint with South Africa's Information Regulator. We may need to verify your identity before completing a privacy request.</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">8. Cookies, Children & Policy Changes</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
+            <p>Grey Analytics uses authentication and application storage required to keep users signed in and preserve product state. The service is intended for business users and is not directed to children.</p>
+            <p>We may update this policy when our services or legal obligations change. Material changes will be published on this page with a revised effective date.</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">9. Contact & Information Officer</CardTitle>
           </CardHeader>
           <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
             <p>

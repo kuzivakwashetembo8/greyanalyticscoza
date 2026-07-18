@@ -17,4 +17,4 @@ Disallow: /alerts
 Disallow: /settings
 Disallow: /api/
 
-Sitemap: https://eastern-cape-spark.lovable.app/sitemap.xml
+Sitemap: https://greyanalytics.co.za/sitemap.xml
