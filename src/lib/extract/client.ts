@@ -12,6 +12,7 @@
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { bearerHeaders } from "@/lib/api/bearer";
+import { supabase } from "@/integrations/supabase/client";
 
 export const MIN_CHARS = 10;
 
@@ -108,4 +109,28 @@ export async function extractWithFallback(file: File): Promise<ExtractResult> {
   const client = await extractClientSide(file);
   if (client.ok) return client;
   return extractServerSide(file);
+}
+
+// Persist the original bytes to the private `original-documents` bucket
+// under `<uid>/<timestamp>-<sanitised>`. Best-effort — returns the path
+// on success or null on failure (never throws).
+export async function uploadOriginalDocument(file: File): Promise<string | null> {
+  try {
+    const { data: sess } = await supabase.auth.getSession();
+    const uid = sess.session?.user?.id;
+    if (!uid) return null;
+    const safe = file.name.replace(/[^\w.\-]/g, "_");
+    const path = `${uid}/${Date.now()}-${safe}`;
+    const { error } = await supabase.storage
+      .from("original-documents")
+      .upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
+    if (error) {
+      console.warn("[originals] upload failed:", error.message);
+      return null;
+    }
+    return path;
+  } catch (err) {
+    console.warn("[originals] upload exception:", err);
+    return null;
+  }
 }
