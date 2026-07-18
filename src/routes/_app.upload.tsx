@@ -91,7 +91,7 @@ function UploadPage() {
     setStepIdx(animated);
 
     try {
-      const { extractClientSide, extractServerSide, detectKind } = await import(
+      const { extractClientSide, extractServerSide, detectKind, uploadOriginalDocument } = await import(
         "@/lib/extract/client"
       );
       const chunks: string[] = [];
@@ -104,7 +104,11 @@ function UploadPage() {
             ? await extractServerSide(file)
             : await extractServerSide(file);
         }
-        if (res.ok) chunks.push(`=== ${file.name} ===\n${res.text}`);
+        if (res.ok) {
+          chunks.push(`=== ${file.name} ===\n${res.text}`);
+          // Persist the original bytes in parallel; do not block on failure.
+          void uploadOriginalDocument(file);
+        }
         else failures.push(`${file.name} (${res.reason})`);
       }
 
