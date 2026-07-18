@@ -20,9 +20,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { agentMeta, type AgentId, type AgentResult } from "@/lib/analysis/types";
 import { PROMPTS } from "@/lib/analysis/prompts";
-import { mockAgentResult } from "@/lib/analysis/mock";
 import { summariseForAgent, tokensToChars } from "@/lib/analysis/summarise";
 import { requireBearer } from "@/lib/api/auth-helpers.server";
+import { requireRateLimit } from "@/lib/api/rate-limit.server";
+import { recordUsage, estimateCostCents } from "@/lib/api/usage.server";
+import { logServerError } from "@/lib/api/monitoring.server";
 
 const TIMEOUT_MS = 60_000;
 const MAX_ATTEMPTS = 3;
@@ -130,12 +132,15 @@ async function callGroqOnce(
   }
 }
 
-async function callGroq(agent: AgentId, text: string): Promise<AgentResult> {
+async function callGroq(agent: AgentId, text: string, userId: string): Promise<AgentResult> {
   const meta = agentMeta(agent);
   const key = process.env[meta.envKey] ?? process.env.GROQ_API_KEY;
   if (!key) {
-    console.log(`[analyze] No API key for ${agent}; returning mock`);
-    return mockAgentResult(agent, text);
+    // No demo fallback in production — surface a clear error so the UI can
+    // mark this agent as failed instead of pretending a mock was analysis.
+    throw new Error(
+      `Analysis unavailable: no GROQ_API_KEY (or ${meta.envKey}) configured on the server`,
+    );
   }
 
   let lastErr = "Agent failed";
@@ -145,7 +150,12 @@ async function callGroq(agent: AgentId, text: string): Promise<AgentResult> {
     console.log(`[analyze] ${agent} attempt ${attempt + 1}/${MAX_ATTEMPTS} budget=${budget}ch reduced=${reduced}`);
     try {
       const out = await callGroqOnce(agent, meta.model, key, payloadText);
-      if (out.ok) return out.result;
+      if (out.ok) {
+        // Best-effort cost telemetry (approximate tokens = chars/4).
+        const approxTokens = Math.ceil(payloadText.length / 4) + MAX_COMPLETION_TOKENS;
+        void recordUsage(userId, `analyze:${agent}`, approxTokens, estimateCostCents(meta.model, approxTokens));
+        return out.result;
+      }
 
       // Rate-limit / payload-too-large → back off and shrink further.
       if (out.status === 413 || out.status === 429) {
@@ -174,6 +184,9 @@ export const Route = createFileRoute("/api/analyze")({
       POST: async ({ request }) => {
         const auth = await requireBearer(request);
         if (!auth.ok) return auth.response;
+        // 20 requests / 5 minutes per user across all agents.
+        const rl = await requireRateLimit(auth.userId, "analyze", 20, 5);
+        if (!rl.allowed) return rl.response;
         let body: { agent?: unknown; text?: unknown };
         try { body = (await request.json()) as typeof body; }
         catch { return json({ success: false, error: "Invalid JSON body" }, 400); }
@@ -185,11 +198,11 @@ export const Route = createFileRoute("/api/analyze")({
         }
 
         try {
-          const result = await callGroq(agent, text);
+          const result = await callGroq(agent, text, auth.userId);
           return json({ success: true, result });
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Agent failed";
-          console.error(`[analyze] ${agent} final failure:`, msg);
+          await logServerError(auth.userId, "analyze", { agent, message: msg });
           // Graceful structured failure — does NOT 500 the request so the
           // browser's per-agent UI can mark this one failed without crashing
           // the parallel batch.
