@@ -60,6 +60,7 @@ export const Route = createFileRoute("/api/alerts")({
       POST: async ({ request }) => {
         const auth = await requireBearer(request);
         if (!auth.ok) return auth.response;
+        const userId = auth.userId;
         const rl = await requireRateLimit(auth.userId, "alerts", 20, 10);
         if (!rl.allowed) return rl.response;
         let payload: AlertRequestPayload;
@@ -114,11 +115,11 @@ export const Route = createFileRoute("/api/alerts")({
         }
         const alertId = alertRow?.id;
 
-        async function recordDelivery(channel: "whatsapp" | "email", to: string, ok: boolean, err?: string, providerId?: string) {
+        async function recordDelivery(channel: "whatsapp" | "email", _to: string, ok: boolean, err?: string, providerId?: string) {
           if (!alertId) return;
           await supabaseAdmin.from("alert_deliveries").insert({
             alert_id: alertId,
-            user_id: auth.userId,
+            user_id: userId,
             channel,
             status: ok ? "sent" : "failed",
             error: err ?? null,
@@ -165,7 +166,7 @@ export const Route = createFileRoute("/api/alerts")({
           await supabaseAdmin.from("alerts").update({
             delivery_status: rollUp,
             channel: results.map((r) => r.channel).join(","),
-          }).eq("id", alertId);
+          }).eq("id", alertId).eq("user_id", userId);
         }
 
         // Mark report as alerted so the UI can dedupe.
@@ -173,7 +174,7 @@ export const Route = createFileRoute("/api/alerts")({
           await supabaseAdmin.from("reports")
             .update({ alerts_sent_at: new Date().toISOString() })
             .eq("id", payload.reportId)
-            .eq("user_id", auth.userId);
+            .eq("user_id", userId);
         }
 
         const response: AlertResponse = {
