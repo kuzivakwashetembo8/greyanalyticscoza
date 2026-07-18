@@ -11,6 +11,7 @@ export interface Anomaly {
   evidence: string;
   severity: Severity;
   fix: string;
+  sourceRefs?: string[];
 }
 
 export interface AgentResult {

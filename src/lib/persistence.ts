@@ -15,15 +15,21 @@ async function currentUserId(): Promise<string | null> {
 export async function saveUpload(u: Upload): Promise<void> {
   const userId = await currentUserId();
   if (!userId) return;
-  await supabase.from("uploads").upsert({
-    id: crypto.randomUUID(),
+  const { error } = await supabase.from("uploads").upsert({
+    id: isUuid(u.id) ? u.id : crypto.randomUUID(),
     user_id: userId,
     file_name: u.fileName,
     size: u.size,
     source: u.source,
     status: u.status,
+    storage_path: u.storagePath ?? null,
+    content_hash: u.contentHash ?? null,
+    mime_type: u.mimeType ?? null,
+    extracted_text: u.extractedText ?? null,
+    report_id: u.reportId ?? null,
     created_at: new Date(u.uploadedAt).toISOString(),
   }, { onConflict: "id" });
+  if (error) throw new Error(error.message);
 }
 
 export async function loadUploads(): Promise<Upload[]> {
@@ -31,7 +37,7 @@ export async function loadUploads(): Promise<Upload[]> {
   if (!userId) return [];
   const { data } = await supabase
     .from("uploads")
-    .select("id, file_name, size, source, status, created_at")
+    .select("id, file_name, size, source, status, created_at, storage_path, content_hash, mime_type, extracted_text, report_id")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -42,6 +48,11 @@ export async function loadUploads(): Promise<Upload[]> {
     source: (r.source ?? "PDF") as Upload["source"],
     status: (r.status ?? "ready") as Upload["status"],
     uploadedAt: new Date(r.created_at),
+    storagePath: r.storage_path,
+    contentHash: r.content_hash,
+    mimeType: r.mime_type,
+    extractedText: r.extracted_text,
+    reportId: r.report_id,
   }));
 }
 
@@ -57,7 +68,7 @@ export async function saveReport(r: Report, extras: {
   const userId = await currentUserId();
   if (!userId) return;
   const id = isUuid(r.id) ? r.id : crypto.randomUUID();
-  await supabase.from("reports").upsert({
+  const { error } = await supabase.from("reports").upsert({
     id,
     user_id: userId,
     business_name: r.businessName,
@@ -68,30 +79,43 @@ export async function saveReport(r: Report, extras: {
     upload_ids: extras.upload_ids ?? [],
     created_at: new Date(r.generatedAt).toISOString(),
   }, { onConflict: "id" });
+  if (error) throw new Error(error.message);
 }
 
 export async function updateReportStatus(reportId: string, status: string): Promise<void> {
   const userId = await currentUserId();
   if (!userId || !isUuid(reportId)) return;
-  await supabase.from("reports").update({ status }).eq("id", reportId).eq("user_id", userId);
+  const { error } = await supabase.from("reports").update({ status }).eq("id", reportId).eq("user_id", userId);
+  if (error) throw new Error(error.message);
 }
 
 export async function saveAgentResults(
   reportId: string,
   results: Partial<Record<AgentId, AgentResult>>,
+  report?: Report,
 ): Promise<void> {
   const userId = await currentUserId();
   if (!userId || !isUuid(reportId)) return;
-  await supabase.from("reports").update({
+  const completed = Object.keys(results).length;
+  const { error } = await supabase.from("reports").update({
     agent_results: JSON.parse(JSON.stringify(results)) as Json,
-    status: "complete",
+    status: completed === 4 ? "complete" : "partial",
+    ...(report ? {
+      payload: JSON.parse(JSON.stringify(report)) as Json,
+      totals: {
+        findings: report.leaks.length,
+        potential_savings: report.roi.potentialSavings,
+      } as Json,
+    } : {}),
   }).eq("id", reportId).eq("user_id", userId);
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteReport(reportId: string): Promise<void> {
   const userId = await currentUserId();
   if (!userId || !isUuid(reportId)) return;
-  await supabase.from("reports").delete().eq("id", reportId).eq("user_id", userId);
+  const { error } = await supabase.from("reports").delete().eq("id", reportId).eq("user_id", userId);
+  if (error) throw new Error(error.message);
 }
 
 export async function loadReports(): Promise<Report[]> {
@@ -99,14 +123,21 @@ export async function loadReports(): Promise<Report[]> {
   if (!userId) return [];
   const { data } = await supabase
     .from("reports")
-    .select("id, payload, created_at, agent_results, extracted_text")
+    .select("id, payload, created_at, agent_results, extracted_text, status, totals")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(50);
   return (data ?? []).map((row) => {
     const r = row.payload as unknown as Report;
     // Prefer the DB row id (real UUID) so update paths stay consistent.
-    return { ...r, id: row.id, generatedAt: new Date(row.created_at) };
+    const totals = (row.totals ?? {}) as { findings?: number; potential_savings?: number };
+    return {
+      ...r,
+      id: row.id,
+      generatedAt: new Date(row.created_at),
+      auditStatus: row.status as Report["auditStatus"],
+      roi: { ...r.roi, potentialSavings: totals.potential_savings ?? r.roi.potentialSavings },
+    };
   });
 }
 

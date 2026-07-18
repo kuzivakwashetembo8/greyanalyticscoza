@@ -1,7 +1,7 @@
 // Transmit Assessment — results page.
 // Auto-runs all 4 agents in parallel on first mount (when no cached results
 // exist) and renders per-agent status with retry. This page is intentionally
-// SEPARATE from /report/$id, which still shows the mock audit content.
+// The resulting persisted report payload is shared with the report views.
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -39,6 +39,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { triggerAlerts } from "@/lib/alerts/client";
+import { updateReportStatus } from "@/lib/persistence";
 
 export const Route = createFileRoute("/_app/analysis/$id")({
   head: () => ({ meta: [{ title: "Transmit Assessment · Grey Analytics" }] }),
@@ -87,14 +88,16 @@ function AnalysisPage() {
   const startedRef = useRef(false);
 
   const launchAgent = async (agent: AgentId) => {
+    void updateReportStatus(reportId, "analysing");
     setState((s) => ({ ...s, [agent]: { status: "running", startedAt: Date.now() } }));
     try {
       const result: AgentResult = await runAgent(agent, text);
-      setAgentResult(reportId, agent, result);
+      await setAgentResult(reportId, agent, result);
       setState((s) => ({ ...s, [agent]: { status: "done", finishedAt: Date.now() } }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Agent failed";
       setState((s) => ({ ...s, [agent]: { status: "error", error: msg, finishedAt: Date.now() } }));
+      void updateReportStatus(reportId, "partial");
     }
   };
 
@@ -337,6 +340,11 @@ function AnalysisPage() {
                                   <span className="font-semibold">Evidence:</span> {an.evidence}
                                 </p>
                               )}
+                              {(an.sourceRefs?.length ?? 0) > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1.5">
+                                  <span className="font-semibold">Source:</span> {an.sourceRefs!.join(" · ")}
+                                </p>
+                              )}
                               {an.fix && (
                                 <p className="text-xs mt-1.5">
                                   <span className="font-semibold text-success">Fix:</span> {an.fix}
@@ -372,7 +380,7 @@ function AnalysisPage() {
 
       <p className="text-xs text-muted-foreground text-center">
         Transmit Assessment output is the source analysis for the upcoming Audit Report. It is intentionally
-        separate from the mock report shown under <span className="font-mono">/report/{reportId}</span>.
+        persisted with this audit so progress and completed findings survive refreshes.
       </p>
 
       <Dialog open={inputOpen} onOpenChange={setInputOpen}>

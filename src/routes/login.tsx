@@ -67,7 +67,9 @@ function LoginPage() {
 
   const onGoogle = async () => {
     setLoading(true);
-    const res = await signInWithGoogle();
+    const raw = search.redirect;
+    const safe = raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
+    const res = await signInWithGoogle(safe);
     if (res.error) {
       toast.error(res.error);
       setLoading(false);
@@ -96,8 +98,8 @@ function LoginPage() {
           </ul>
         </div>
         <div className="relative flex items-center gap-4 text-xs text-sidebar-foreground/70">
-          <span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5" /> POPIA Compliant</span>
-          <span className="flex items-center gap-1.5"><Lock className="size-3.5" /> AES-256 · TLS 1.3</span>
+          <span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5" /> POPIA-aligned controls</span>
+          <span className="flex items-center gap-1.5"><Lock className="size-3.5" /> Private storage · HTTPS</span>
           <Link to="/privacy-policy" className="hover:underline ml-1">Privacy Policy</Link>
           <Link to="/terms-of-service" className="hover:underline">Terms of Service</Link>
         </div>
@@ -117,7 +119,21 @@ function LoginPage() {
             </div>
             <p className="text-sm text-muted-foreground mt-1">{mode === "signin" ? "Sign in to see your latest audit." : "Start finding leaks in minutes."}</p>
 
-            {/* Google sign-in button disabled */}
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-5 w-full gap-2"
+              onClick={() => void onGoogle()}
+              disabled={loading}
+            >
+              <GoogleIcon /> Continue with Google
+            </Button>
+
+            <div className="my-5 flex items-center gap-3" aria-hidden>
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">or use email</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
 
             <form onSubmit={submit} className="space-y-4">
               {mode === "signup" && (

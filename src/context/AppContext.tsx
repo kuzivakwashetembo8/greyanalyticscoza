@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { type Alert, type MockUser, type Report, type Role, type Upload } from "@/lib/mock";
@@ -6,7 +6,7 @@ import type { AgentId, AgentResult } from "@/lib/analysis/types";
 import {
   loadAlerts, loadReports, loadReportExtras, loadUploads,
   markAlertReadRemote, markAllAlertsReadRemote,
-  saveAgentResults, saveUpload,
+  saveAgentResults,
   updateProfile, type ProfilePatch,
 } from "@/lib/persistence";
 
@@ -21,7 +21,8 @@ import {
 //   3. Sign in / sign up / Google OAuth / sign out are exposed as async
 //      methods on the context. The legacy `login(email)` helper is kept as a
 //      no-op alias for any old call sites but new code should use signIn.
-// All other state (uploads/reports/alerts) remains client-side mock data.
+// Uploads, reports, extracted text, analyses and alerts hydrate from Supabase;
+// React state is the in-session view rather than the source of truth.
 // ============================================================================
 
 interface AppState {
@@ -33,7 +34,7 @@ interface AppState {
   login: (email: string) => void;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, businessName: string, opts?: { whatsapp?: string; termsVersion?: string }) => Promise<{ error?: string }>;
-  signInWithGoogle: () => Promise<{ error?: string }>;
+  signInWithGoogle: (redirectPath?: string) => Promise<{ error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (patch: ProfilePatch) => Promise<{ error?: string }>;
   uploads: Upload[];
@@ -48,11 +49,47 @@ interface AppState {
   extractedTexts: Record<string, string>;
   setExtractedText: (reportId: string, text: string) => void;
   analyses: Record<string, Partial<Record<AgentId, AgentResult>>>;
-  setAgentResult: (reportId: string, agent: AgentId, result: AgentResult) => void;
+  setAgentResult: (reportId: string, agent: AgentId, result: AgentResult) => Promise<void>;
   clearAnalysis: (reportId: string) => void;
 }
 
 const Ctx = createContext<AppState | null>(null);
+
+function amountFromFinding(description: string, evidence: string): number {
+  const match = `${description} ${evidence}`.match(/(?:ZAR|R)\s*([0-9][0-9\s,.]*)/i);
+  if (!match) return 0;
+  const normalised = match[1].replace(/\s/g, "").replace(/,(?=\d{3}(?:\D|$))/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".");
+  const value = Number.parseFloat(normalised);
+  return Number.isFinite(value) ? Math.round(value) : 0;
+}
+
+function materialiseReport(base: Report, results: Partial<Record<AgentId, AgentResult>>): Report {
+  const categories: Record<AgentId, Report["leaks"][number]["category"]> = {
+    finance: "Finance", operations: "Ops", compliance: "Compliance", strategy: "Strategy",
+  };
+  const leaks = (Object.entries(results) as Array<[AgentId, AgentResult]>).flatMap(([agent, result]) =>
+    result.anomalies.map((finding, index) => ({
+      id: `${agent}-${index}-${finding.type}`,
+      type: finding.type,
+      amount: amountFromFinding(finding.description, finding.evidence),
+      description: finding.description,
+      evidence: [...(finding.sourceRefs ?? []), finding.evidence].filter(Boolean),
+      fix: finding.fix ? [finding.fix] : [],
+      category: categories[agent],
+      severity: finding.severity,
+    })),
+  );
+  const potentialSavings = leaks.reduce((sum, leak) => sum + leak.amount, 0);
+  const complete = Object.keys(results).length === 4;
+  return {
+    ...base,
+    executiveSummary: `${leaks.length} evidence-backed finding${leaks.length === 1 ? "" : "s"} identified by ${Object.keys(results).length} of 4 specialist agents.`,
+    leaks,
+    fixSteps: [...new Set(leaks.flatMap((leak) => leak.fix))],
+    roi: { ...base.roi, potentialSavings },
+    auditStatus: complete ? "complete" : "partial",
+  };
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppState["user"]>(null);
@@ -63,6 +100,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [extractedTexts, setExtractedTexts] = useState<Record<string, string>>({});
   const [analyses, setAnalyses] = useState<Record<string, Partial<Record<AgentId, AgentResult>>>>({});
+  const analysesRef = useRef(analyses);
+  const reportsRef = useRef(reports);
+  const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => { analysesRef.current = analyses; }, [analyses]);
+  useEffect(() => { reportsRef.current = reports; }, [reports]);
 
   const hydrateProfile = useCallback(async (userId: string, fallbackEmail: string) => {
     const { data } = await supabase
@@ -166,9 +209,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       return error ? { error: error.message } : {};
     },
-    signInWithGoogle: async () => {
+    signInWithGoogle: async (redirectPath) => {
+      const safeRedirect = redirectPath?.startsWith("/") && !redirectPath.startsWith("//")
+        ? redirectPath
+        : "/dashboard";
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: `${window.location.origin}/login?redirect=${encodeURIComponent(safeRedirect)}`,
       });
       if (result.error) return { error: result.error.message ?? "Sign-in failed" };
       return {};
@@ -192,10 +238,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return res;
     },
     uploads,
-    addUpload: (u) => { setUploads((prev) => [u, ...prev]); void saveUpload(u); },
+    addUpload: (u) => { setUploads((prev) => [u, ...prev]); },
     reports,
     addReport: (r) => { setReports((prev) => [r, ...prev]); return r; },
-    getReport: (id) => reports.find((r) => r.id === id) ?? reports[0],
+    getReport: (id) => reports.find((r) => r.id === id),
     alerts,
     addAlertsFromReport: (_r) => { /* real alerts are created by the /api/alerts pipeline */ },
     markAlertRead: (id) => {
@@ -209,13 +255,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     extractedTexts,
     setExtractedText: (reportId, text) => setExtractedTexts((prev) => ({ ...prev, [reportId]: text })),
     analyses,
-    setAgentResult: (reportId, agent, result) =>
-      setAnalyses((prev) => {
-        const merged = { ...(prev[reportId] ?? {}), [agent]: result };
-        // Persist server-side so results survive refreshes.
-        void saveAgentResults(reportId, merged);
-        return { ...prev, [reportId]: merged };
-      }),
+    setAgentResult: async (reportId, agent, result) => {
+      const merged = { ...(analysesRef.current[reportId] ?? {}), [agent]: result };
+      analysesRef.current = { ...analysesRef.current, [reportId]: merged };
+      setAnalyses(analysesRef.current);
+
+      const persist = persistenceQueueRef.current.then(async () => {
+        const latest = analysesRef.current[reportId] ?? merged;
+        const base = reportsRef.current.find((report) => report.id === reportId);
+        const updated = base ? materialiseReport(base, latest) : undefined;
+        await saveAgentResults(reportId, latest, updated);
+        if (updated) {
+          reportsRef.current = reportsRef.current.map((report) => report.id === reportId ? updated : report);
+          setReports(reportsRef.current);
+        }
+      });
+      persistenceQueueRef.current = persist.catch(() => undefined);
+      await persist;
+    },
     clearAnalysis: (reportId) =>
       setAnalyses((prev) => { const next = { ...prev }; delete next[reportId]; return next; }),
   }), [user, role, loading, uploads, reports, alerts, extractedTexts, analyses]);

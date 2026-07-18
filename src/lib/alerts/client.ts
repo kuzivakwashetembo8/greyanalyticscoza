@@ -90,6 +90,8 @@ export async function triggerAlerts(args: TriggerAlertsArgs): Promise<TriggerAle
       body: JSON.stringify(payload),
     });
     const data = (await res.json()) as AlertResponse;
+    if (!res.ok) throw new Error(data.reason ?? `Alert dispatch failed (HTTP ${res.status})`);
+    if (!data.triggered) return { triggered: false, response: data, persisted: [] };
 
     const top = [...anomalies].sort((a, b) => (b.amount || 0) - (a.amount || 0))[0];
     const rows: SentAlert[] = data.results.map((r) => ({
@@ -145,6 +147,12 @@ function makeFailedRow(
 
 /** Retry a single previously-failed alert row by re-sending only its channel. */
 export async function retrySingleAlert(row: SentAlert): Promise<SentAlert> {
+  const retryCount = row.retryCount ?? 0;
+  if (retryCount >= 3) {
+    const error = "Retry limit reached (3 attempts).";
+    updateSentAlert(row.id, { error, retryCount });
+    return { ...row, error, retryCount };
+  }
   const payload: AlertRequestPayload = {
     reportId: row.reportId,
     businessName: row.businessName,
@@ -158,6 +166,7 @@ export async function retrySingleAlert(row: SentAlert): Promise<SentAlert> {
       fix: row.fixSummary,
       description: row.fixSummary,
     }],
+    retryChannel: row.channel,
   };
   try {
     const res = await fetch("/api/alerts", {
@@ -166,15 +175,16 @@ export async function retrySingleAlert(row: SentAlert): Promise<SentAlert> {
       body: JSON.stringify(payload),
     });
     const data = (await res.json()) as AlertResponse;
+    if (!res.ok) throw new Error(data.reason ?? `Alert retry failed (HTTP ${res.status})`);
     const ch = data.results.find((r) => r.channel === row.channel);
     const patch: Partial<SentAlert> = ch
-      ? { status: ch.status, error: ch.error, sentAt: Date.now() }
-      : { status: "failed", error: "Channel not attempted", sentAt: Date.now() };
+      ? { status: ch.status, error: ch.error, sentAt: Date.now(), retryCount: retryCount + 1 }
+      : { status: "failed", error: "Channel not attempted", sentAt: Date.now(), retryCount: retryCount + 1 };
     updateSentAlert(row.id, patch);
     return { ...row, ...patch };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Retry failed";
-    updateSentAlert(row.id, { status: "failed", error: msg, sentAt: Date.now() });
-    return { ...row, status: "failed", error: msg, sentAt: Date.now() };
+    updateSentAlert(row.id, { status: "failed", error: msg, sentAt: Date.now(), retryCount: retryCount + 1 });
+    return { ...row, status: "failed", error: msg, sentAt: Date.now(), retryCount: retryCount + 1 };
   }
 }

@@ -292,6 +292,7 @@ export type Database = {
       }
       reports: {
         Row: {
+          analysis_state: Json
           agent_results: Json
           alerts_sent_at: string | null
           business_name: string
@@ -299,14 +300,17 @@ export type Database = {
           extracted_text: string | null
           id: string
           methodology: Json
+          narrative: Json | null
           payload: Json
           status: string
+          report_version: number
           title: string
           totals: Json
           upload_ids: string[]
           user_id: string
         }
         Insert: {
+          analysis_state?: Json
           agent_results?: Json
           alerts_sent_at?: string | null
           business_name: string
@@ -314,14 +318,17 @@ export type Database = {
           extracted_text?: string | null
           id?: string
           methodology?: Json
+          narrative?: Json | null
           payload: Json
           status?: string
+          report_version?: number
           title?: string
           totals?: Json
           upload_ids?: string[]
           user_id: string
         }
         Update: {
+          analysis_state?: Json
           agent_results?: Json
           alerts_sent_at?: string | null
           business_name?: string
@@ -329,8 +336,10 @@ export type Database = {
           extracted_text?: string | null
           id?: string
           methodology?: Json
+          narrative?: Json | null
           payload?: Json
           status?: string
+          report_version?: number
           title?: string
           totals?: Json
           upload_ids?: string[]

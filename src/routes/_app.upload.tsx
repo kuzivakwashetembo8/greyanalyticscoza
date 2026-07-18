@@ -3,7 +3,7 @@ import { useState } from "react";
 import { FileDropZone } from "@/components/upload/FileDropZone";
 import { useApp } from "@/context/AppContext";
 import { emptyReport } from "@/lib/mock";
-import { saveReport } from "@/lib/persistence";
+import { saveReport, saveUpload } from "@/lib/persistence";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,10 +49,10 @@ function UploadPage() {
 
   const addFiles = (incoming: File[]) => {
     setError(null);
-    const limit = (user as any)?.uploadLimit || 5;
+    const limit = user?.uploadLimit || 5;
     setFiles((prev) => {
       if (prev.length >= limit) {
-        toast.error(`Upload limit reached (${limit} files max). Update in Settings.`);
+        toast.error(`Upload limit reached (${limit} files max for this account).`);
         return prev;
       }
       const key = (f: File) => `${f.name}__${f.size}`;
@@ -91,25 +91,30 @@ function UploadPage() {
     setStepIdx(animated);
 
     try {
-      const { extractClientSide, extractServerSide, detectKind, uploadOriginalDocument } = await import(
+      const { extractClientSide, extractServerSide } = await import(
         "@/lib/extract/client"
       );
       const chunks: string[] = [];
       const failures: string[] = [];
+      const completed: Array<{ file: File; text: string; uploadId: string; storagePath?: string; contentHash?: string }> = [];
       for (const file of files) {
-        const kind = detectKind(file);
-        let res = await extractClientSide(file);
-        if (!res.ok && res.reason !== "unsupported") {
-          res = kind === "image" || res.reason === "image-needs-server"
-            ? await extractServerSide(file)
-            : await extractServerSide(file);
+        // Local parsing keeps supported documents responsive, while the
+        // authenticated server call remains authoritative for quota, magic
+        // bytes, historical duplicates, private storage and audit linkage.
+        const local = await extractClientSide(file);
+        const remote = await extractServerSide(file);
+        if (remote.ok && remote.uploadId) {
+          const text = local.ok ? local.text : remote.text;
+          chunks.push(`=== ${file.name} ===\n${text}`);
+          completed.push({
+            file,
+            text,
+            uploadId: remote.uploadId,
+            storagePath: remote.storagePath,
+            contentHash: remote.contentHash,
+          });
         }
-        if (res.ok) {
-          chunks.push(`=== ${file.name} ===\n${res.text}`);
-          // Persist the original bytes in parallel; do not block on failure.
-          void uploadOriginalDocument(file);
-        }
-        else failures.push(`${file.name} (${res.reason})`);
+        else failures.push(`${file.name} (${remote.ok ? "upload-registration-failed" : remote.reason})`);
       }
 
       if (chunks.length === 0) {
@@ -122,31 +127,36 @@ function UploadPage() {
 
       setProgress(100);
 
-      // Register the upload artefacts and an empty mock report shell. The
-      // report's mock charts/leaks remain untouched; Transmit Assessment
-      // results live on a SEPARATE /analysis page per spec.
-      files.forEach((f) => {
+      const r = emptyReport(user?.businessName);
+      const text = chunks.join("\n\n");
+      // Save the durable audit shell before linking its uploads. Database
+      // failures abort the visible success flow instead of being hidden.
+      await saveReport(r, {
+        status: "extracted",
+        extracted_text: text,
+        upload_ids: completed.map((entry) => entry.uploadId),
+      });
+      // Link every server-created upload record to the durable audit shell.
+      for (const { file: f, text: extractedText, uploadId, storagePath, contentHash } of completed) {
         const ext = (f.name.split(".").pop() ?? "").toLowerCase();
-        addUpload({
-          id: "up_" + Math.random().toString(36).slice(2, 9),
+        const upload = {
+          id: uploadId,
           fileName: f.name,
           size: (f.size / 1024 / 1024).toFixed(2) + " MB",
           uploadedAt: new Date(),
           status: "ready",
           source: ext === "pdf" ? "PDF" : ext === "csv" ? "CSV" : ext.startsWith("xls") ? "Excel" : "Image",
-        });
-      });
-      const r = emptyReport(user?.businessName);
+          storagePath,
+          contentHash,
+          mimeType: f.type || null,
+          extractedText,
+          reportId: r.id,
+        } as const;
+        await saveUpload(upload);
+        addUpload(upload);
+      }
       addReport(r);
-      const text = chunks.join("\n\n");
       setExtractedText(r.id, text);
-      // Persist the shell + extracted text server-side immediately so a
-      // refresh mid-analysis can resume without re-uploading.
-      void saveReport(r, {
-        status: "extracted",
-        extracted_text: text,
-        upload_ids: files.map((f) => f.name),
-      });
 
       toast.success("Text extracted successfully", { description: `${files.length} file(s) processed.` });
       setDone({ reportId: r.id, chars: text.length, files: files.length });
@@ -229,8 +239,7 @@ function UploadPage() {
       <div className="flex items-start gap-3 text-sm text-muted-foreground p-4 rounded-lg bg-muted/40 border border-border">
         <ShieldCheck className="size-4 mt-0.5 text-success shrink-0" />
         <p>
-          Your files are encrypted with AES-256 at rest and TLS 1.3 in transit. We delete all data 30 days after
-          offboarding (POPIA).
+          Originals are stored in private account-scoped storage and transmitted over HTTPS. Use account deletion to remove stored originals and linked audit data.
         </p>
       </div>
 

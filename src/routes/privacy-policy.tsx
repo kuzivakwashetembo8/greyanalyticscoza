@@ -16,7 +16,7 @@ function PrivacyPolicyPage() {
             <ArrowLeft className="size-4" /> Back to Welcome
           </Link>
           <div className="flex items-center gap-2 text-success text-sm font-semibold mb-2">
-            <ShieldCheck className="size-4" /> POPIA Compliant Data Handling
+            <ShieldCheck className="size-4" /> POPIA-aligned data handling
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Privacy Policy</h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
@@ -55,7 +55,7 @@ function PrivacyPolicyPage() {
           </CardHeader>
           <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
             <p>
-              We enforce rigorous technical safeguards across all infrastructure tiers. All uploaded files and extracted texts are encrypted using industry-standard <strong className="text-foreground">AES-256 at rest</strong> inside secured South African data clusters and transmitted strictly via <strong className="text-foreground">TLS 1.3 in transit</strong>.
+              Original documents are stored in a private Supabase Storage bucket and access is scoped to the signed-in account. Data is transmitted over HTTPS. Encryption at rest and transport security are provided by the configured hosting and database providers; Grey Analytics does not claim a specific cipher, TLS version, or data region beyond the deployed providers' verified configuration.
             </p>
           </CardContent>
         </Card>
@@ -69,7 +69,7 @@ function PrivacyPolicyPage() {
               Financial records and analysis telemetry are maintained only for the duration required to generate your audit assessments and maintain your alert historical trails.
             </p>
             <p>
-              In strict adherence to POPIA minimization mandates, <strong className="text-foreground">all uploaded files, extracted raw texts, and generated reports are permanently purged within 30 days of account offboarding or termination</strong>.
+              Using <strong className="text-foreground">Delete my account</strong> requests immediate deletion of private original documents followed by deletion of the account and its linked uploads, reports, alerts, settings, and audit records. If storage deletion fails, account deletion stops and reports the failure instead of claiming completion. No automatic 30-day purge schedule is currently claimed.
             </p>
           </CardContent>
         </Card>
@@ -79,12 +79,11 @@ function PrivacyPolicyPage() {
             <CardTitle className="text-xl">5. Third-Party Specialist Processors</CardTitle>
           </CardHeader>
           <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
-            <p>
-              To deliver our Transmit Assessment capabilities, extracted raw text (never authentication credentials or raw banking keys) is transmitted to enterprise AI inference providers (such as Groq Cloud infrastructure). When text exceeds token thresholds, secure pre-summarization compression is applied while maintaining exact financial entity precision.
-            </p>
-            <p>
-              Automated notifications are dispatched through authorized connectors including Twilio (WhatsApp Business API) and Resend (Email).
-            </p>
+            <p><strong className="text-foreground">Supabase:</strong> authentication, database, and private original-document storage.</p>
+            <p><strong className="text-foreground">Groq:</strong> AI inference for extraction, specialist analysis, summarisation, and report narrative generation. Extracted financial text may be sent to Groq when an AI operation is requested.</p>
+            <p><strong className="text-foreground">Twilio:</strong> WhatsApp delivery when that channel is configured and enabled.</p>
+            <p><strong className="text-foreground">Resend:</strong> email delivery when that channel is configured and enabled.</p>
+            <p><strong className="text-foreground">Cloudflare:</strong> application hosting when the included Cloudflare deployment target is used. The actual deployment operator must keep this list aligned with its live configuration.</p>
           </CardContent>
         </Card>
 
@@ -103,8 +102,8 @@ function PrivacyPolicyPage() {
       <footer className="border-t border-border px-6 py-4 text-xs text-muted-foreground bg-card mt-12">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-success" /> POPIA Compliant</span>
-            <span className="flex items-center gap-1.5"><Lock className="size-3.5 text-success" /> AES-256 Encrypted</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-success" /> POPIA-aligned controls</span>
+            <span className="flex items-center gap-1.5"><Lock className="size-3.5 text-success" /> Private storage · HTTPS</span>
             <Link to="/terms-of-service" className="hover:underline">Terms of Service</Link>
           </div>
           <span>© {new Date().getFullYear()} Grey Analytics</span>

@@ -19,6 +19,7 @@ import {
   type ConnectionStatus,
 } from "@/lib/accounting/client";
 import type { AccountingProvider } from "@/services/accounting/types";
+import { effectiveUploadLimit } from "@/lib/plans";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings · Grey Analytics" }] }),
@@ -34,8 +35,7 @@ const ACCOUNTING_META: Array<{ id: AccountingProvider; name: string; desc: strin
 ];
 
 const EXTRA_INTEGRATIONS = [
-  { name: "Bank Statement (PDF)", desc: "Upload manually", connected: true },
-  { name: "WhatsApp Business", desc: "Receive alerts and send invoices", connected: true },
+  { name: "Bank Statement (PDF)", desc: "Upload manually" },
 ];
 
 function SettingsPage() {
@@ -46,7 +46,6 @@ function SettingsPage() {
   const [biz, setBiz] = useState(user?.businessName ?? "");
   const [notifyWa, setNotifyWa] = useState(user?.notifyWhatsapp ?? true);
   const [notifyEmail, setNotifyEmail] = useState(user?.notifyEmail ?? true);
-  const [uploadLimit, setUploadLimit] = useState<number>(user?.uploadLimit ?? 5);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [acct, setAcct] = useState<ConnectionStatus[]>([]);
@@ -62,7 +61,6 @@ function SettingsPage() {
     setBiz(user.businessName);
     setNotifyWa(user.notifyWhatsapp);
     setNotifyEmail(user.notifyEmail);
-    setUploadLimit(user.uploadLimit);
   }, [user]);
 
   // Hydrate accounting connection status + surface OAuth callback results.
@@ -110,7 +108,6 @@ function SettingsPage() {
       name: name.trim(),
       business_name: biz.trim(),
       whatsapp: whatsapp.trim() || null,
-      upload_limit: Math.min(100, Math.max(1, uploadLimit || 5)),
     });
     setSaving(false);
     if (res.error) toast.error(res.error);
@@ -161,9 +158,11 @@ function SettingsPage() {
             <div className="space-y-1.5"><Label htmlFor="email">Email</Label><Input id="email" type="email" value={user?.email ?? ""} readOnly disabled /></div>
             <div className="space-y-1.5"><Label htmlFor="wa">WhatsApp number</Label><Input id="wa" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+27 ..." /></div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="ulim">Upload limit (1 – 100)</Label>
-              <Input id="ulim" type="number" min={1} max={100} value={uploadLimit}
-                onChange={(e) => setUploadLimit(Number(e.target.value))} />
+              <Label>Daily document allowance</Label>
+              <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                {effectiveUploadLimit(user?.plan, user?.uploadLimit)} documents on the <span className="font-medium capitalize">{user?.plan ?? "free"}</span> plan
+              </div>
+              <p className="text-xs text-muted-foreground">Allowances are enforced by the upload server and cannot be changed from the browser.</p>
             </div>
             <div className="sm:col-span-2 flex justify-end">
               <Button type="submit" disabled={saving}>
@@ -226,12 +225,24 @@ function SettingsPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="font-medium text-sm">{it.name}</span>
-                  <Badge className="bg-success text-success-foreground hover:bg-success gap-1 text-[10px] w-fit"><CheckCircle2 className="size-3" />Connected</Badge>
+                  <Badge variant="outline" className="gap-1 text-[10px] w-fit"><CheckCircle2 className="size-3" />Available</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{it.desc}</p>
               </div>
             </div>
           ))}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 py-3">
+            <div className="size-10 rounded-lg bg-muted grid place-items-center font-semibold text-xs flex-shrink-0">WA</div>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="font-medium text-sm">WhatsApp alerts</span>
+                <Badge variant="outline" className="gap-1 text-[10px] w-fit">
+                  {user?.whatsapp && user.notifyWhatsapp ? "Enabled for account" : "Not enabled"}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">Delivery also requires the deployment's Twilio configuration; this page does not claim provider connectivity.</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -267,7 +278,7 @@ function SettingsPage() {
           {/* Edited by Copilot: Replaced em-dash (—) with space
               Reason: Remove all em-dashes rendered on UI for consistent text
               rendering across all device sizes and improved mobile responsiveness */}
-          <CardDescription>Delete your account and all data (POPIA deleted within 30 days).</CardDescription>
+          <CardDescription>Immediately delete private originals, your account, and linked application data.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="destructive" className="gap-2" onClick={handleDeleteAccount} disabled={deleting}>

@@ -1,14 +1,14 @@
 // Inspection Export — dedicated report page.
 // Loads cached report from localStorage; if none exists, composes a new one
-// via /api/report (Groq narrative writer with mock fallback). Export buttons
+// via /api/report (Groq narrative writer with explicit failure handling). Export buttons
 // trigger PDF (browser print), DOCX, and TXT downloads.
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { AGENTS } from "@/lib/analysis/types";
 import { composeNarrative } from "@/lib/report/client";
-import { loadReport, saveReport, reportFilename } from "@/lib/report/storage";
+import { loadReport, loadReportRemote, saveReport, saveReportRemote, reportFilename } from "@/lib/report/storage";
 import { exportDocx, exportPdf, exportTxt } from "@/lib/report/exports";
 import { InspectionReport } from "@/components/report/InspectionReport";
 import type { ReportNarrative } from "@/lib/report/types";
@@ -37,7 +37,7 @@ type Phase = "idle" | "loading-cache" | "composing" | "ready" | "error";
 function InspectionExportPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const { reports, getReport, analyses } = useApp();
+  const { reports, getReport, analyses, uploads } = useApp();
   const report = id === "latest" ? reports[0] : getReport(id);
   const reportId = report?.id ?? id;
 
@@ -47,11 +47,11 @@ function InspectionExportPage() {
   const [error, setError] = useState<string | null>(null);
   const composed = useRef(false);
 
-  const agentResults = analyses[reportId] ?? {};
+  const agentResults = useMemo(() => analyses[reportId] ?? {}, [analyses, reportId]);
   const completeAgents = AGENTS.filter((a) => agentResults[a.id]).length;
   const ready = completeAgents === AGENTS.length;
 
-  // Step 1 — try localStorage on mount.
+  // Step 1 — use local cache, then the durable report row.
   useEffect(() => {
     if (!reportId) return;
     const cached = loadReport(reportId);
@@ -59,7 +59,17 @@ function InspectionExportPage() {
       setNarrative(cached);
       setPhase("ready");
     } else {
-      setPhase("idle");
+      void loadReportRemote(reportId)
+        .then((remote) => {
+          if (remote) {
+            saveReport(remote);
+            setNarrative(remote);
+            setPhase("ready");
+          } else {
+            setPhase("idle");
+          }
+        })
+        .catch(() => setPhase("idle"));
     }
   }, [reportId]);
 
@@ -77,18 +87,28 @@ function InspectionExportPage() {
 
     try {
       const { pages, mocked } = await composeNarrative(report.businessName, agentResults);
+      if (mocked) throw new Error("Report generation returned a mock result, which is not allowed.");
       const result: ReportNarrative = {
         businessName: report.businessName,
         generatedAt: new Date().toISOString(),
         reportId,
         pages,
         analyses: agentResults,
+        methodology: {
+          documents: uploads.filter((upload) => upload.reportId === reportId).map((upload) => upload.fileName),
+          checks: AGENTS.map((agent) => `${agent.label}: ${agent.focus}`),
+          limitations: [
+            "Findings are limited to the documents supplied and text that could be extracted.",
+            "No conclusion is made where source evidence is insufficient.",
+          ],
+        },
+        disclaimer: "Grey Analytics provides AI-assisted financial inspection, not a statutory independent audit, legal opinion, or tax-practitioner service.",
       };
+      result.version = await saveReportRemote(result);
       saveReport(result);
       setNarrative(result);
       setProgress(100);
       setPhase("ready");
-      if (mocked) toast.message("Report generated", { description: "Using demo narrative (no Groq key configured)." });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Composer failed";
       setError(msg);
@@ -97,7 +117,7 @@ function InspectionExportPage() {
     } finally {
       clearInterval(tick);
     }
-  }, [report, reportId, agentResults]);
+  }, [report, reportId, agentResults, uploads]);
 
   // Auto-compose when analysis is complete and no cached narrative exists.
   useEffect(() => {

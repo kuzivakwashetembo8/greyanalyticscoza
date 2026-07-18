@@ -12,11 +12,16 @@
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { bearerHeaders } from "@/lib/api/bearer";
-import { supabase } from "@/integrations/supabase/client";
 
 export const MIN_CHARS = 10;
 
-export type ExtractResult = { ok: true; text: string } | { ok: false; reason: string };
+export type ExtractResult = {
+  ok: true;
+  text: string;
+  uploadId?: string;
+  storagePath?: string;
+  contentHash?: string;
+} | { ok: false; reason: string };
 
 export function detectKind(file: File): "pdf" | "csv" | "excel" | "image" | "unknown" {
   const name = file.name.toLowerCase();
@@ -95,9 +100,22 @@ export async function extractServerSide(file: File): Promise<ExtractResult> {
   fd.append("file", file, file.name);
   try {
     const res = await fetch("/api/extract", { method: "POST", body: fd, headers: await bearerHeaders() });
-    const json = (await res.json()) as { success: boolean; text?: string; error?: string };
+    const json = (await res.json()) as {
+      success: boolean;
+      text?: string;
+      error?: string;
+      upload_id?: string;
+      storage_path?: string;
+      content_hash?: string;
+    };
     if (json.success && json.text && json.text.trim().length >= MIN_CHARS) {
-      return { ok: true, text: json.text };
+      return {
+        ok: true,
+        text: json.text,
+        uploadId: json.upload_id,
+        storagePath: json.storage_path,
+        contentHash: json.content_hash,
+      };
     }
     return { ok: false, reason: json.error ?? "server-extract-failed" };
   } catch (err) {
@@ -109,28 +127,4 @@ export async function extractWithFallback(file: File): Promise<ExtractResult> {
   const client = await extractClientSide(file);
   if (client.ok) return client;
   return extractServerSide(file);
-}
-
-// Persist the original bytes to the private `original-documents` bucket
-// under `<uid>/<timestamp>-<sanitised>`. Best-effort — returns the path
-// on success or null on failure (never throws).
-export async function uploadOriginalDocument(file: File): Promise<string | null> {
-  try {
-    const { data: sess } = await supabase.auth.getSession();
-    const uid = sess.session?.user?.id;
-    if (!uid) return null;
-    const safe = file.name.replace(/[^\w.\-]/g, "_");
-    const path = `${uid}/${Date.now()}-${safe}`;
-    const { error } = await supabase.storage
-      .from("original-documents")
-      .upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
-    if (error) {
-      console.warn("[originals] upload failed:", error.message);
-      return null;
-    }
-    return path;
-  } catch (err) {
-    console.warn("[originals] upload exception:", err);
-    return null;
-  }
 }

@@ -86,6 +86,9 @@ function coerceResult(agent: AgentId, model: string, parsed: unknown): AgentResu
         type: String(x.type ?? "finding"),
         description: String(x.description ?? ""),
         evidence: String(x.evidence ?? ""),
+        sourceRefs: Array.isArray(x.source_refs)
+          ? x.source_refs.filter((ref): ref is string => typeof ref === "string").slice(0, 5)
+          : [],
         severity: sev === "high" || sev === "low" ? (sev as "high" | "low") : "medium",
         fix: String(x.fix ?? x.suggested_fix ?? ""),
       };
@@ -202,7 +205,7 @@ export const Route = createFileRoute("/api/analyze")({
           return json({ success: true, result });
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Agent failed";
-          await logServerError(auth.userId, "analyze", { agent, message: msg });
+          const errorReference = await logServerError(auth.userId, "analyze", { agent, message: msg });
           // Graceful structured failure — does NOT 500 the request so the
           // browser's per-agent UI can mark this one failed without crashing
           // the parallel batch.
@@ -211,6 +214,7 @@ export const Route = createFileRoute("/api/analyze")({
             analysis_failed: true,
             agent,
             error: "We couldn't complete this agent's analysis. You can retry just this agent.",
+            error_reference: errorReference,
             detail: msg,
           }, 200);
         }

@@ -87,6 +87,10 @@ export async function exportDocx(report: ReportNarrative, filename: string = rep
       ],
       spacing: { after: 320 },
     }),
+    new Paragraph({ children: [new TextRun({ text: "AI-assisted inspection disclaimer", bold: true })] }),
+    new Paragraph({ children: [new TextRun(report.disclaimer)] }),
+    new Paragraph({ children: [new TextRun({ text: `Documents: ${report.methodology.documents.join(", ") || "Linked audit uploads"}` })] }),
+    new Paragraph({ children: [new TextRun({ text: `Checks: ${report.methodology.checks.join("; ")}` })], spacing: { after: 240 } }),
   );
 
   report.pages.forEach((page, idx) => {
@@ -194,6 +198,10 @@ export function exportTxt(report: ReportNarrative, filename: string = reportFile
   L.push("====================================");
   L.push(`Business : ${report.businessName}`);
   L.push(`Generated: ${new Date(report.generatedAt).toLocaleString()}`);
+  L.push(`Version  : ${report.version ?? 1}`);
+  L.push(`Disclaimer: ${report.disclaimer}`);
+  L.push(`Documents : ${report.methodology.documents.join(", ") || "Linked audit uploads"}`);
+  L.push(`Checks    : ${report.methodology.checks.join("; ")}`);
   L.push("");
 
   report.pages.forEach((page, i) => {

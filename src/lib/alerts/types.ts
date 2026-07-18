@@ -17,6 +17,7 @@ export interface SentAlert {
   sentAt: number;          // epoch ms
   error?: string;          // populated when status === "failed"
   to: string;              // destination phone / email
+  retryCount?: number;
 }
 
 export interface AlertRequestPayload {
@@ -32,6 +33,7 @@ export interface AlertRequestPayload {
     fix: string;
     description: string;
   }>;
+  retryChannel?: AlertChannel;
 }
 
 export interface AlertChannelResult {

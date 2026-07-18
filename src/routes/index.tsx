@@ -66,7 +66,7 @@ function WelcomePage() {
 
         <div className="relative z-10 pt-8 border-t border-sidebar-border/40 flex flex-wrap items-center justify-between gap-4 text-xs text-sidebar-foreground/60">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5"><ShieldCheck className="size-4 text-success" /> POPIA Compliant</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck className="size-4 text-success" /> POPIA-aligned controls</span>
             <span className="flex items-center gap-1.5"><Lock className="size-4 text-success" /> Bank-Grade Security</span>
             <Link to="/privacy-policy" className="hover:underline ml-2">Privacy Policy</Link>
             <Link to="/terms-of-service" className="hover:underline">Terms of Service</Link>

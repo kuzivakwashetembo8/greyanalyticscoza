@@ -26,6 +26,11 @@ export async function requireRateLimit(
       return { allowed: true };
     }
     if (data === false) {
+      await supabaseAdmin.from("audit_log").insert({
+        user_id: userId,
+        event: "security.rate_limit_exceeded",
+        detail: { bucket, limit, window_minutes: windowMinutes },
+      });
       return {
         allowed: false,
         response: new Response(

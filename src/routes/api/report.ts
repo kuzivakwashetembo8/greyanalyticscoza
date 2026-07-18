@@ -1,7 +1,7 @@
 // Inspection Export — narrative composer server route.
 // Calls Groq once with the full analyses JSON and asks for a single JSON
-// document containing all 5 pages. Falls back to a deterministic mock when
-// GROQ_API_KEY (or GROQ_REPORT_KEY) is absent so the demo still completes.
+// document containing all 5 pages. Missing provider configuration and model
+// failures are returned explicitly; production never substitutes mock output.
 
 import { createFileRoute } from "@tanstack/react-router";
 import type { AgentId, AgentResult } from "@/lib/analysis/types";
@@ -11,6 +11,7 @@ import { requireBearer } from "@/lib/api/auth-helpers.server";
 import { requireRateLimit } from "@/lib/api/rate-limit.server";
 import { recordUsage, estimateCostCents } from "@/lib/api/usage.server";
 import { logServerError } from "@/lib/api/monitoring.server";
+import { recordSecurityEvent } from "@/lib/api/audit.server";
 
 const MODEL = "llama-3.3-70b-versatile"; // strong instruction-following on Groq
 const TIMEOUT_MS = 90_000;
@@ -80,12 +81,11 @@ export const Route = createFileRoute("/api/report")({
         const businessName = typeof body.businessName === "string" ? body.businessName : "Your business";
         const analyses = (body.analyses ?? {}) as Partial<Record<AgentId, AgentResult>>;
 
-        // Require at least one real completed agent — no report from empty input.
-        const haveAny = Object.values(analyses).some((r) => r && !r.mocked && r.anomalies);
-        if (!haveAny) {
+        const completeAgents = Object.values(analyses).filter((result) => result && !result.mocked && result.anomalies).length;
+        if (completeAgents !== 4) {
           return json({
             success: false,
-            error: "No completed analysis available. Run Transmit Assessment first.",
+            error: `All four specialist analyses are required before report generation (${completeAgents}/4 complete).`,
           }, 400);
         }
 
@@ -132,11 +132,15 @@ export const Route = createFileRoute("/api/report")({
               error: `Model returned only ${pages.length} pages; expected 5. Please retry.`,
             }, 502);
           }
+          await recordSecurityEvent(auth.userId, "report.generated", {
+            business_name: businessName,
+            agent_count: completeAgents,
+          });
           return json({ success: true, mocked: false, pages });
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Composer failed";
-          await logServerError(auth.userId, "report", { message: msg });
-          return json({ success: false, error: msg }, 502);
+          const errorReference = await logServerError(auth.userId, "report", { message: msg });
+          return json({ success: false, error: msg, error_reference: errorReference }, 502);
         } finally {
           clearTimeout(timer);
         }

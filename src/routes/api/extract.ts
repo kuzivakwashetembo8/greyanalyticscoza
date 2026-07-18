@@ -20,13 +20,27 @@ import * as XLSX from "xlsx";
 import { requireBearer } from "@/lib/api/auth-helpers.server";
 import { requireRateLimit } from "@/lib/api/rate-limit.server";
 import { logServerError } from "@/lib/api/monitoring.server";
+import { effectiveUploadLimit } from "@/lib/plans";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const MIN_CHARS = 10;
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB cap mirrors the upload UI.
 const TIMEOUT_MS = 30_000;
 
-type Json = { success: boolean; text?: string; error?: string; storage_path?: string };
+type Json = {
+  success: boolean;
+  text?: string;
+  error?: string;
+  error_reference?: string;
+  upload_id?: string;
+  storage_path?: string;
+  content_hash?: string;
+};
+
+async function sha256Hex(file: File): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 function json(body: Json, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -194,8 +208,8 @@ export const Route = createFileRoute("/api/extract")({
         // Enforce the user's upload quota — the browser also honours this but
         // an attacker can trivially bypass client-side limits.
         const { data: profile } = await supabaseAdmin
-          .from("profiles").select("upload_limit").eq("id", auth.userId).maybeSingle();
-        const limit = profile?.upload_limit ?? 5;
+          .from("profiles").select("upload_limit,plan").eq("id", auth.userId).maybeSingle();
+        const limit = effectiveUploadLimit(profile?.plan, profile?.upload_limit);
         const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const { count } = await supabaseAdmin
           .from("uploads").select("id", { count: "exact", head: true })
@@ -203,7 +217,7 @@ export const Route = createFileRoute("/api/extract")({
         if ((count ?? 0) >= limit) {
           return json({
             success: false,
-            error: `Daily upload quota reached (${limit}). Update the limit in Settings.`,
+            error: `Daily upload allowance reached (${limit} documents for the ${profile?.plan ?? "free"} plan).`,
           }, 429);
         }
 
@@ -217,6 +231,19 @@ export const Route = createFileRoute("/api/extract")({
         if (!(file instanceof File)) {
           return json({ success: false, error: "Missing 'file' field" }, 400);
         }
+        const contentHash = await sha256Hex(file);
+        const { data: duplicate } = await supabaseAdmin
+          .from("uploads")
+          .select("id,file_name")
+          .eq("user_id", auth.userId)
+          .eq("content_hash", contentHash)
+          .maybeSingle();
+        if (duplicate) {
+          return json({
+            success: false,
+            error: `This document was already uploaded as ${duplicate.file_name}.`,
+          }, 409);
+        }
         const result = await Promise.race<Json>([
           run(file),
           new Promise<Json>((resolve) =>
@@ -226,24 +253,49 @@ export const Route = createFileRoute("/api/extract")({
         if (!result.success) {
           await logServerError(auth.userId, "extract", { message: result.error });
         } else {
-          // Best-effort: persist the original bytes to the private
-          // `original-documents` bucket under the caller's uid/ prefix.
-          // Failure to upload does not block returning the extracted text.
           try {
-            const path = `${auth.userId}/${Date.now()}-${(file as File).name.replace(/[^\w.\-]/g, "_")}`;
-            const { error: upErr } = await supabaseAdmin.storage
+            const path = `${auth.userId}/${Date.now()}-${(file as File).name.replace(/[^\w.-]/g, "_")}`;
+            const { error: storageError } = await supabaseAdmin.storage
               .from("original-documents")
               .upload(path, file, {
                 contentType: (file as File).type || "application/octet-stream",
                 upsert: false,
               });
-            if (upErr) {
-              console.warn("[extract] storage upload failed:", upErr.message);
-            } else {
-              (result as Json & { storage_path?: string }).storage_path = path;
+            if (storageError) throw new Error(`Private document storage failed: ${storageError.message}`);
+
+            const kind = detectKind((file as File).name, (file as File).type);
+            const source = kind === "pdf" ? "PDF" : kind === "csv" ? "CSV" : kind === "excel" ? "Excel" : "Image";
+            const { data: upload, error: insertError } = await supabaseAdmin
+              .from("uploads")
+              .insert({
+                user_id: auth.userId,
+                file_name: (file as File).name,
+                size: `${((file as File).size / 1024 / 1024).toFixed(2)} MB`,
+                source,
+                status: "ready",
+                storage_path: path,
+                content_hash: contentHash,
+                mime_type: (file as File).type || null,
+                extracted_text: result.text ?? null,
+              })
+              .select("id")
+              .single();
+            if (insertError || !upload) {
+              await supabaseAdmin.storage.from("original-documents").remove([path]);
+              throw new Error(`Could not register uploaded document: ${insertError?.message ?? "unknown error"}`);
             }
+            result.upload_id = upload.id;
+            result.storage_path = path;
+            result.content_hash = contentHash;
+            await supabaseAdmin.from("audit_log").insert({
+              user_id: auth.userId,
+              event: "upload.accepted",
+              detail: { upload_id: upload.id, content_hash: contentHash, mime_type: (file as File).type },
+            });
           } catch (err) {
-            console.warn("[extract] storage upload exception:", err);
+            const message = err instanceof Error ? err.message : "Upload registration failed";
+            const errorReference = await logServerError(auth.userId, "extract.storage", { message });
+            return json({ success: false, error: message, error_reference: errorReference }, 502);
           }
         }
         return json(result, result.success ? 200 : 422);

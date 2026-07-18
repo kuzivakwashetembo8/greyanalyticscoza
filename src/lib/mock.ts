@@ -18,6 +18,11 @@ export interface Upload {
   uploadedAt: Date;
   status: "processing" | "ready" | "failed";
   source: "PDF" | "CSV" | "Excel" | "Image";
+  storagePath?: string | null;
+  contentHash?: string | null;
+  mimeType?: string | null;
+  extractedText?: string | null;
+  reportId?: string | null;
 }
 
 export interface Leak {
@@ -42,6 +47,7 @@ export interface Report {
   roi: { currentSpend: number; potentialSavings: number; recoveryMonths: number };
   readability: { grade: number; label: string };
   monthly: { month: string; spend: number; savings: number }[];
+  auditStatus?: "extracting" | "extracted" | "analysing" | "partial" | "complete" | "failed";
 }
 
 export interface Alert {

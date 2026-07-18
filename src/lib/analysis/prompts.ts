@@ -13,6 +13,7 @@ Return ONLY a single JSON object (no markdown, no prose) with this exact shape:
       "type": "<short slug e.g. duplicate-payment>",
       "description": "<one sentence, plain English, South African SMME context>",
       "evidence": "<direct quote or paraphrase from the input text>",
+      "source_refs": ["<exact document/page/sheet marker from the input, e.g. statement.pdf · Page 2>"],
       "severity": "high" | "medium" | "low",
       "fix": "<concrete next action the owner can take this week>"
     }
@@ -24,6 +25,8 @@ Rules:
 - Only report findings supported by the supplied text.
 - If the text is too thin to assess, return empty arrays and confidence <= 0.3.
 - Quote actual evidence; never invent figures, dates, or counterparties.
+- Populate source_refs from the === document === and --- Page/Sheet --- markers in the supplied text.
+- Never invent a page, sheet, row, or document reference. Use an empty array when no exact marker supports the finding.
 - Maximum 6 anomalies and 5 insights.
 - Output MUST be valid JSON. No trailing commas. No comments.
 `.trim();

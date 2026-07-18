@@ -145,7 +145,17 @@ export function InspectionReport({ report }: { report: ReportNarrative }) {
           >
             <PageHeader report={report} pageNum={i + 1} total={report.pages.length} />
             <h1 className="text-2xl font-bold tracking-tight mb-1">{page.title}</h1>
-            <p className="text-sm text-muted-foreground mb-5">Page {i + 1} of {report.pages.length}</p>
+            <p className="text-sm text-muted-foreground mb-5">Page {i + 1} of {report.pages.length}{report.version ? ` · Version ${report.version}` : ""}</p>
+
+            {i === 0 && (
+              <aside className="mb-5 rounded-md border border-border bg-muted/30 p-4 text-xs space-y-2">
+                <p className="font-semibold">AI-assisted inspection disclaimer</p>
+                <p>{report.disclaimer}</p>
+                <p><span className="font-semibold">Documents:</span> {report.methodology.documents.join(", ") || "Linked audit uploads"}</p>
+                <p><span className="font-semibold">Checks performed:</span> {report.methodology.checks.join("; ")}</p>
+                <p><span className="font-semibold">Limitations:</span> {report.methodology.limitations.join(" ")}</p>
+              </aside>
+            )}
 
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">Summary</h2>
             <p className="leading-relaxed mb-5">{page.summary}</p>

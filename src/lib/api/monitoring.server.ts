@@ -8,10 +8,11 @@ export async function logServerError(
   userId: string | null,
   event: string,
   detail: Record<string, unknown> = {},
-): Promise<void> {
-  const safe = { ...detail, at: new Date().toISOString() };
+): Promise<string> {
+  const reference = crypto.randomUUID();
+  const safe = { ...detail, reference, at: new Date().toISOString() };
   console.error(`[monitor] ${event}`, safe);
-  if (!userId) return;
+  if (!userId) return reference;
   try {
     await supabaseAdmin.from("audit_log").insert({
       user_id: userId,
@@ -21,4 +22,5 @@ export async function logServerError(
   } catch (err) {
     console.error("[monitor] audit_log insert failed:", err);
   }
+  return reference;
 }

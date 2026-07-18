@@ -6,6 +6,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getFreshTokens } from "@/lib/accounting/storage";
 import { getAccountingService } from "@/services/accounting";
 import type { AccountingProvider } from "@/services/accounting/types";
+import { recordSecurityEvent } from "@/lib/api/audit.server";
+import { logServerError } from "@/lib/api/monitoring.server";
 
 const PROVIDERS = new Set<AccountingProvider>(["xero", "quickbooks", "sage"]);
 
@@ -35,11 +37,12 @@ export const Route = createFileRoute("/api/accounting/sync/$provider")({
           if (!tokens) return new Response("Not connected", { status: 404 });
           const svc = getAccountingService(provider);
           const transactions = await svc.fetchTransactions(tokens, body);
+          await recordSecurityEvent(userId, "integration.sync_succeeded", { provider, transaction_count: transactions.length });
           return Response.json({ transactions });
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Sync failed";
-          console.error(`[accounting/sync/${provider}]`, msg);
-          return new Response(msg, { status: 500 });
+          const reference = await logServerError(userId, `accounting.sync.${provider}`, { message: msg });
+          return Response.json({ error: msg, error_reference: reference }, { status: 500 });
         }
       },
     },

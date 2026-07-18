@@ -64,6 +64,12 @@ function DashboardPage() {
                 Upload a bank statement, general ledger, or Xero export to run your first audit. Your reports will appear here.
               </p>
             </div>
+            <div className="mx-auto max-w-lg rounded-lg border bg-muted/30 p-4 text-left text-sm space-y-2">
+              <p><strong>1.</strong> Upload PDF, CSV, Excel, or document images (up to 20 MB each).</p>
+              <p><strong>2.</strong> Review the extracted text, then run the four specialist analyses.</p>
+              <p><strong>3.</strong> Generate a report only after all four analyses complete.</p>
+              <p className="text-xs text-muted-foreground">Grey Analytics is an AI-assisted anomaly review, not a statutory audit. Results depend on the documents supplied and should be verified.</p>
+            </div>
             <Button asChild className="gap-2">
               <Link to="/upload"><UploadIcon className="size-4" /> Upload your first document</Link>
             </Button>

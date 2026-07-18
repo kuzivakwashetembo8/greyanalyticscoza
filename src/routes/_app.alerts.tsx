@@ -4,6 +4,7 @@ import { useApp } from "@/context/AppContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCheck } from "lucide-react";
 import {
@@ -35,13 +36,19 @@ function AlertsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "sent" | "failed">("all");
   const [channel, setChannel] = useState<"all" | "whatsapp" | "email">("all");
+  const [severity, setSeverity] = useState<"all" | "high" | "medium" | "low">("all");
+  const [dateRange, setDateRange] = useState<"all" | "7" | "30">("all");
+  const [reportQuery, setReportQuery] = useState("");
 
   useEffect(() => { setAlerts(loadSentAlerts()); }, []);
 
   const visible = useMemo(() => alerts.filter((a) =>
     (filter === "all" || a.status === filter) &&
-    (channel === "all" || a.channel === channel),
-  ), [alerts, filter, channel]);
+    (channel === "all" || a.channel === channel) &&
+    (severity === "all" || a.severity === severity) &&
+    (dateRange === "all" || a.sentAt >= Date.now() - Number(dateRange) * 86_400_000) &&
+    (!reportQuery.trim() || `${a.businessName} ${a.reportId}`.toLowerCase().includes(reportQuery.trim().toLowerCase())),
+  ), [alerts, filter, channel, severity, dateRange, reportQuery]);
 
   const unreadDb = dbAlerts.filter((a) => !a.read).length;
 
@@ -111,6 +118,13 @@ function AlertsPage() {
                 <TabsTrigger value="email">Email</TabsTrigger>
               </TabsList>
             </Tabs>
+            <select value={severity} onChange={(event) => setSeverity(event.target.value as typeof severity)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+              <option value="all">Any severity</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
+            </select>
+            <select value={dateRange} onChange={(event) => setDateRange(event.target.value as typeof dateRange)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+              <option value="all">Any date</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option>
+            </select>
+            <Input value={reportQuery} onChange={(event) => setReportQuery(event.target.value)} placeholder="Filter by report or business" className="h-9 max-w-xs" />
           </div>
         </>
       )}

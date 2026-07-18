@@ -6,6 +6,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getAccountingService, type AccountingProvider } from "@/services/accounting";
 import { saveTokens } from "@/lib/accounting/storage";
+import { recordSecurityEvent } from "@/lib/api/audit.server";
+import { logServerError } from "@/lib/api/monitoring.server";
 
 const PROVIDERS = new Set<AccountingProvider>(["xero", "quickbooks", "sage"]);
 
@@ -43,11 +45,12 @@ export const Route = createFileRoute("/api/accounting/callback/$provider")({
           const stateForExchange = provider === "quickbooks" ? JSON.stringify({ realmId }) : stateRaw;
           const tokens = await svc.exchangeCode(code, stateForExchange);
           await saveTokens(userId, provider, tokens);
+          await recordSecurityEvent(userId, "integration.connected", { provider });
           return Response.redirect(new URL(`/settings?integration=${provider}&status=connected`, url), 302);
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Token exchange failed";
-          console.error(`[accounting/callback/${provider}]`, msg);
-          return Response.redirect(new URL(`/settings?integration=${provider}&error=${encodeURIComponent(msg)}`, url), 302);
+          const reference = await logServerError(userId, `accounting.callback.${provider}`, { message: msg });
+          return Response.redirect(new URL(`/settings?integration=${provider}&error=${encodeURIComponent(`${msg} (reference ${reference})`)}`, url), 302);
         }
       },
     },

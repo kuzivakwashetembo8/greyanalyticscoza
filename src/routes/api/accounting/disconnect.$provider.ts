@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { deleteTokens } from "@/lib/accounting/storage";
 import type { AccountingProvider } from "@/services/accounting/types";
+import { recordSecurityEvent } from "@/lib/api/audit.server";
 
 const PROVIDERS = new Set<AccountingProvider>(["xero", "quickbooks", "sage"]);
 
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/api/accounting/disconnect/$provider")({
         if (!userId) return new Response("Unauthorized", { status: 401 });
         try {
           await deleteTokens(userId, provider);
+          await recordSecurityEvent(userId, "integration.disconnected", { provider });
           return Response.json({ ok: true });
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Disconnect failed";

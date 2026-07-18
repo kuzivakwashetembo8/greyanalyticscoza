@@ -3,7 +3,6 @@ import { LayoutDashboard, Upload, Bell, Settings, LogOut, ShieldCheck, Lock, Men
 import { useState, type ReactNode } from "react";
 import { useApp } from "@/context/AppContext";
 import { PWAInstallButton } from "@/components/pwa/PWAInstallButton";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -14,7 +13,7 @@ const NAV = [
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, role, setRole, logout, alerts } = useApp();
+  const { user, logout, alerts } = useApp();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -72,8 +71,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="p-4 border-t border-sidebar-border space-y-3">
           <div className="text-xs space-y-1.5 text-sidebar-foreground/70">
-            <div className="flex items-center gap-2"><ShieldCheck className="size-3.5 text-success" /> POPIA compliant</div>
-            <div className="flex items-center gap-2"><Lock className="size-3.5 text-success" /> AES-256 · TLS 1.3</div>
+            <div className="flex items-center gap-2"><ShieldCheck className="size-3.5 text-success" /> POPIA-aligned controls</div>
+            <div className="flex items-center gap-2"><Lock className="size-3.5 text-success" /> Private storage · HTTPS</div>
           </div>
           <PWAInstallButton variant="outline" className="w-full text-xs h-8 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground font-semibold border-none" />
           <button
@@ -99,25 +98,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="text-xs text-muted-foreground">{user?.email}</div>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <div className="hidden sm:flex items-center gap-1 p-1 bg-muted rounded-full" role="group" aria-label="Role">
-                {(["Free", "Premium"] as const).map((r, idx) => (
-                  <button
-                    key={r}
-                    onClick={() => {
-                      if (r === "Premium") {
-                        toast.info("Premium Tier: Coming Soon", { description: "Unlocks more document support (up to 100), comprehensive forensic analysis, and priority queue." });
-                      }
-                    }}
-                    className={cn(
-                      "px-3 py-1 text-xs font-medium rounded-full transition",
-                      idx === 0 ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
-                    )}
-                    aria-pressed={idx === 0}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
               <Link to="/alerts" className="relative p-2 rounded-md hover:bg-muted" aria-label="Alerts">
                 <Bell className="size-5" />
                 {unread > 0 && <span className="absolute top-1 right-1 size-2 rounded-full bg-destructive" />}
@@ -133,9 +113,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <footer className="border-t border-border px-4 sm:px-6 py-4 text-xs text-muted-foreground">
           <div className="max-w-[1440px] mx-auto flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-success" /> POPIA Compliant</span>
-            <span className="flex items-center gap-1.5"><Lock className="size-3.5 text-success" /> AES-256 at rest · TLS 1.3 in transit</span>
-            <span>Data hosted in South Africa</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-success" /> POPIA-aligned controls</span>
+            <span className="flex items-center gap-1.5"><Lock className="size-3.5 text-success" /> Private storage · HTTPS</span>
             <Link to="/privacy-policy" className="hover:underline ml-2">Privacy Policy</Link>
             <Link to="/terms-of-service" className="hover:underline">Terms of Service</Link>
             <span className="ml-auto">© {new Date().getFullYear()} Grey Analytics</span>

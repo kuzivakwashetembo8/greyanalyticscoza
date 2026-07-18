@@ -16,6 +16,19 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
       detail: {},
     });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Storage objects do not cascade when auth.users is deleted. Remove the
+    // caller's private folder explicitly before deleting the account.
+    const { data: objects, error: listError } = await supabaseAdmin.storage
+      .from("original-documents")
+      .list(userId, { limit: 1000 });
+    if (listError) throw new Error(`Could not list stored documents: ${listError.message}`);
+    if (objects?.length) {
+      const paths = objects.map((object) => `${userId}/${object.name}`);
+      const { error: removeError } = await supabaseAdmin.storage
+        .from("original-documents")
+        .remove(paths);
+      if (removeError) throw new Error(`Could not remove stored documents: ${removeError.message}`);
+    }
     // profiles / reports / uploads / alerts / accounting_connections all
     // cascade from auth.users on delete.
     const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);

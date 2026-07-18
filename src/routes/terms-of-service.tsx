@@ -66,7 +66,7 @@ function TermsOfServicePage() {
           </CardHeader>
           <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
             <p>
-              Default portal usage permits processing up to 5 business documents concurrently. Enterprise tier configurations allow adjusting upload capacities up to 100 documents inside portal Settings. Automated WhatsApp and Email notification delivery requires valid connectivity parameters.
+              Document processing is limited by the server-side allowance assigned to the account plan and displayed in Settings. Users cannot raise that allowance from the browser. WhatsApp and email delivery also require valid deployment configuration.
             </p>
           </CardContent>
         </Card>

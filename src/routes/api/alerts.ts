@@ -67,16 +67,70 @@ export const Route = createFileRoute("/api/alerts")({
         try { payload = (await request.json()) as AlertRequestPayload; }
         catch { return json({ success: false, error: "Invalid JSON" }, 400); }
 
+        const validReportId = /^[0-9a-f-]{36}$/i.test(payload.reportId ?? "") ? payload.reportId : null;
+        if (payload.retryChannel) {
+          if (!validReportId) return json({ success: false, error: "A valid report is required for retry." }, 400);
+          const { data: priorAlerts, error: priorAlertError } = await supabaseAdmin
+            .from("alerts")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("report_id", validReportId);
+          if (priorAlertError) return json({ success: false, error: priorAlertError.message }, 500);
+          const alertIds = (priorAlerts ?? []).map((alert) => alert.id);
+          if (alertIds.length === 0) return json({ success: false, error: "No original delivery exists to retry." }, 409);
+          const { count: attempts, error: attemptError } = await supabaseAdmin
+            .from("alert_deliveries")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .eq("channel", payload.retryChannel)
+            .in("alert_id", alertIds);
+          if (attemptError) return json({ success: false, error: attemptError.message }, 500);
+          // One original delivery plus at most three retry deliveries.
+          if ((attempts ?? 0) >= 4) {
+            await supabaseAdmin.from("audit_log").insert({
+              user_id: userId,
+              event: "notification.retry_limit_exceeded",
+              detail: { report_id: validReportId, channel: payload.retryChannel },
+            });
+            return json({ success: false, error: "Retry limit reached for this report and channel." }, 429);
+          }
+        }
+        if (!payload.retryChannel && validReportId) {
+          // Atomically claim notification delivery for this report. A refresh,
+          // second tab or concurrent request cannot claim it twice.
+          const { data: claimed, error: claimError } = await supabaseAdmin
+            .from("reports")
+            .update({ alerts_sent_at: new Date().toISOString() })
+            .eq("id", validReportId)
+            .eq("user_id", userId)
+            .is("alerts_sent_at", null)
+            .select("id")
+            .maybeSingle();
+          if (claimError) return json({ success: false, error: claimError.message }, 500);
+          if (!claimed) {
+            return json({
+              success: true,
+              triggered: false,
+              reason: "Notifications were already processed for this report.",
+              results: [],
+              anomalies: [],
+            });
+          }
+        }
+
         // Load user profile: channel prefs override request-supplied destinations.
-        const { data: profile } = await supabaseAdmin
+        const { data: profile, error: profileError } = await supabaseAdmin
           .from("profiles")
           .select("email, whatsapp, notify_email, notify_whatsapp")
           .eq("id", auth.userId).maybeSingle();
+        if (profileError) return json({ success: false, error: profileError.message }, 500);
 
         const notifyEmail = profile?.notify_email !== false;
         const notifyWhats = profile?.notify_whatsapp !== false;
-        const emailTo = notifyEmail ? (payload.emailTo ?? profile?.email ?? "") : "";
-        const whatsappTo = notifyWhats ? (payload.whatsappTo ?? profile?.whatsapp ?? "") : "";
+        const emailTo = notifyEmail && (!payload.retryChannel || payload.retryChannel === "email")
+          ? (profile?.email ?? "") : "";
+        const whatsappTo = notifyWhats && (!payload.retryChannel || payload.retryChannel === "whatsapp")
+          ? (profile?.whatsapp ?? "") : "";
 
         const triggered = (payload.anomalies ?? []).filter(
           (a) => a.severity === "high" || (Number.isFinite(a.amount) && a.amount > AMOUNT_THRESHOLD),
@@ -101,7 +155,7 @@ export const Route = createFileRoute("/api/alerts")({
           .from("alerts")
           .insert({
             user_id: auth.userId,
-            report_id: payload.reportId?.match(/^[0-9a-f-]{36}$/i) ? payload.reportId : null,
+            report_id: validReportId,
             leak_type: top.type,
             amount: top.amount || 0,
             severity: top.severity,
@@ -169,13 +223,15 @@ export const Route = createFileRoute("/api/alerts")({
           }).eq("id", alertId).eq("user_id", userId);
         }
 
-        // Mark report as alerted so the UI can dedupe.
-        if (payload.reportId && /^[0-9a-f-]{36}$/i.test(payload.reportId)) {
-          await supabaseAdmin.from("reports")
-            .update({ alerts_sent_at: new Date().toISOString() })
-            .eq("id", payload.reportId)
-            .eq("user_id", userId);
-        }
+        await supabaseAdmin.from("audit_log").insert({
+          user_id: userId,
+          event: payload.retryChannel ? "notification.retry" : "notification.processed",
+          detail: JSON.parse(JSON.stringify({
+            report_id: validReportId,
+            results,
+            retry_channel: payload.retryChannel ?? null,
+          })),
+        });
 
         const response: AlertResponse = {
           success: true,

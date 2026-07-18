@@ -18,4 +18,11 @@ export interface ReportNarrative {
   pages: ReportPageNarrative[];
   // Raw analyses are stored alongside so DOCX/TXT can embed JSON blocks.
   analyses: Partial<Record<AgentId, AgentResult>>;
+  version?: number;
+  methodology: {
+    documents: string[];
+    checks: string[];
+    limitations: string[];
+  };
+  disclaimer: string;
 }

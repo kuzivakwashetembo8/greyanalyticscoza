@@ -49,13 +49,13 @@ export function ReportListCard() {
       <CardContent className="space-y-2">
         {reports.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">No reports yet — run an audit.</p>}
         {reports.map((r) => (
-          <Link key={r.id} to="/report/$id" params={{ id: r.id }} className="flex items-center gap-3 p-2.5 rounded-md hover:bg-muted/60 transition">
+          <Link key={r.id} to="/analysis/$id" params={{ id: r.id }} className="flex items-center gap-3 p-2.5 rounded-md hover:bg-muted/60 transition">
             <div className="size-9 rounded bg-primary/10 text-primary grid place-items-center"><FileText className="size-4" /></div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium truncate">{r.title}</div>
               <div className="text-xs text-muted-foreground">{r.businessName} · {formatDistanceToNow(r.generatedAt, { addSuffix: true })}</div>
             </div>
-            <Badge variant="outline">{r.leaks.length} leaks</Badge>
+            <Badge variant="outline">{r.auditStatus ?? "extracted"} · {r.leaks.length} findings</Badge>
             <ArrowRight className="size-4 text-muted-foreground" />
           </Link>
         ))}
