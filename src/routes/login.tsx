@@ -124,10 +124,14 @@ function LoginPage() {
               variant="outline"
               className="mt-5 w-full gap-2"
               onClick={() => void onGoogle()}
-              disabled={loading}
+              disabled
+              aria-describedby="google-signin-status"
             >
               <GoogleIcon /> Continue with Google
             </Button>
+            <p id="google-signin-status" className="mt-2 text-center text-xs text-muted-foreground">
+              Temporarily unavailable while Google completes verification.
+            </p>
 
             <div className="my-5 flex items-center gap-3" aria-hidden>
               <div className="h-px flex-1 bg-border" />
