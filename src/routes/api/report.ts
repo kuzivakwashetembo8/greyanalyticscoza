@@ -7,8 +7,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { AgentId, AgentResult } from "@/lib/analysis/types";
 import type { ReportPageNarrative } from "@/lib/report/types";
 import { REPORT_SYSTEM_PROMPT } from "@/lib/report/prompt";
-import { mockNarrative } from "@/lib/report/mock";
 import { requireBearer } from "@/lib/api/auth-helpers.server";
+import { requireRateLimit } from "@/lib/api/rate-limit.server";
+import { recordUsage, estimateCostCents } from "@/lib/api/usage.server";
+import { logServerError } from "@/lib/api/monitoring.server";
 
 const MODEL = "llama-3.3-70b-versatile"; // strong instruction-following on Groq
 const TIMEOUT_MS = 90_000;
@@ -69,6 +71,8 @@ export const Route = createFileRoute("/api/report")({
       POST: async ({ request }) => {
         const auth = await requireBearer(request);
         if (!auth.ok) return auth.response;
+        const rl = await requireRateLimit(auth.userId, "report", 10, 10);
+        if (!rl.allowed) return rl.response;
         let body: { businessName?: unknown; analyses?: unknown };
         try { body = (await request.json()) as typeof body; }
         catch { return json({ success: false, error: "Invalid JSON body" }, 400); }
@@ -76,10 +80,21 @@ export const Route = createFileRoute("/api/report")({
         const businessName = typeof body.businessName === "string" ? body.businessName : "Your business";
         const analyses = (body.analyses ?? {}) as Partial<Record<AgentId, AgentResult>>;
 
+        // Require at least one real completed agent — no report from empty input.
+        const haveAny = Object.values(analyses).some((r) => r && !r.mocked && r.anomalies);
+        if (!haveAny) {
+          return json({
+            success: false,
+            error: "No completed analysis available. Run Transmit Assessment first.",
+          }, 400);
+        }
+
         const key = process.env.GROQ_REPORT_KEY ?? process.env.GROQ_API_KEY;
         if (!key) {
-          // Graceful fallback so the demo still produces a 5-page report.
-          return json({ success: true, mocked: true, pages: mockNarrative(businessName, analyses) });
+          return json({
+            success: false,
+            error: "Report generation unavailable: GROQ_API_KEY not configured on the server.",
+          }, 503);
         }
 
         const controller = new AbortController();
@@ -109,14 +124,18 @@ export const Route = createFileRoute("/api/report")({
           const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
           const content = data.choices?.[0]?.message?.content ?? "";
           const pages = coercePages(safeParseJson(content));
+          const approxTokens = 4000;
+          void recordUsage(auth.userId, "report", approxTokens, estimateCostCents(MODEL, approxTokens));
           if (pages.length < 5) {
-            // Model returned fewer pages than required — top up with mock to keep UI usable.
-            const filled = [...pages, ...mockNarrative(businessName, analyses).slice(pages.length)];
-            return json({ success: true, mocked: false, pages: filled });
+            return json({
+              success: false,
+              error: `Model returned only ${pages.length} pages; expected 5. Please retry.`,
+            }, 502);
           }
           return json({ success: true, mocked: false, pages });
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Composer failed";
+          await logServerError(auth.userId, "report", { message: msg });
           return json({ success: false, error: msg }, 502);
         } finally {
           clearTimeout(timer);
