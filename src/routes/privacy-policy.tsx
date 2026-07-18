@@ -24,7 +24,7 @@ function PrivacyPolicyPage() {
           <div className="flex items-center gap-2 text-success text-sm font-semibold mb-2">
             <ShieldCheck className="size-4" /> POPIA-aligned data handling
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Privacy Policy</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Grey Analytics Privacy Policy</h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
             Effective Date: 19 July 2026
           </p>
@@ -36,10 +36,10 @@ function PrivacyPolicyPage() {
           </CardHeader>
           <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
             <p>
-              Grey Analytics ("we", "our", or "us") is dedicated to safeguarding the financial and personal data of South African Small, Medium, and Micro Enterprises (SMMEs). This Privacy Policy outlines our standards for collecting, processing, and protecting your data in strict compliance with the Protection of Personal Information Act (POPIA) No. 4 of 2013.
+              Grey Analytics ("we", "our", or "us") is an AI-assisted financial document analysis web application for South African businesses and their authorised accountants. This Privacy Policy explains how the Grey Analytics application collects, uses, shares, protects, retains and deletes personal and financial information in accordance with applicable South African data-protection law, including POPIA.
             </p>
             <p>
-              By accessing our platform or uploading business documentation, you consent to the secure extraction and specialized analytical assessment practices detailed herein.
+              By creating an account or uploading business documentation, you acknowledge the processing practices described here. Where consent is the appropriate legal basis, we will request it through the application.
             </p>
           </CardContent>
         </Card>

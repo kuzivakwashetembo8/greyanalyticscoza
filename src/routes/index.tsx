@@ -1,19 +1,21 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, Lock, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Lock, ArrowRight, CheckCircle2 } from "lucide-react";
 import { PWAInstallButton } from "@/components/pwa/PWAInstallButton";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [
-    { title: "Grey Analytics — AI financial audits for South African SMMEs" },
-    { name: "description", content: "Four AI agents scan your Xero, Sage, QuickBooks and bank statements to find money leaks. Plain-English audit reports and WhatsApp alerts in under 48 hours." },
-    { property: "og:title", content: "Grey Analytics — AI financial audits for South African SMMEs" },
-    { property: "og:description", content: "Four AI agents scan your Xero, Sage, QuickBooks and bank statements to find money leaks. Plain-English audit reports and WhatsApp alerts in under 48 hours." },
+    { title: "Grey Analytics — AI-assisted financial document analysis" },
+    { name: "application-name", content: "Grey Analytics" },
+    { name: "description", content: "Grey Analytics is a web application that analyses uploaded business financial documents for anomalies and produces evidence-based reports and optional alerts." },
+    { property: "og:site_name", content: "Grey Analytics" },
+    { property: "og:title", content: "Grey Analytics — AI-assisted financial document analysis" },
+    { property: "og:description", content: "Upload bank statements, accounting exports, invoices and spreadsheets for AI-assisted anomaly detection, evidence references and plain-language reports." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
-    { name: "twitter:title", content: "Grey Analytics — AI financial audits for South African SMMEs" },
-    { name: "twitter:description", content: "Find money leaks fast with four dedicated AI audit agents. Built for Eastern Cape SMMEs." },
+    { name: "twitter:title", content: "Grey Analytics — AI-assisted financial document analysis" },
+    { name: "twitter:description", content: "A web application for analysing uploaded business financial documents and producing evidence-based reports." },
   ], links: [{ rel: "canonical", href: "https://greyanalytics.co.za/" }] }),
   component: WelcomePage,
 });
@@ -52,10 +54,16 @@ function WelcomePage() {
 
         <div className="relative z-10 my-auto py-12 lg:py-0 space-y-6 max-w-lg">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-[1.15] tracking-tight">
-            Detect money leaks in your business in plain English.
+            <span className="block">Grey Analytics</span>
+            <span className="block mt-2 text-2xl sm:text-3xl lg:text-4xl text-sidebar-foreground/90">
+              AI-assisted financial document analysis for South African businesses
+            </span>
           </h1>
           <p className="text-sidebar-foreground/80 text-base sm:text-lg leading-relaxed">
-            Grey Analytics empowers South African SMMEs with four dedicated AI agents that continuously analyze bank statements, Xero, QuickBooks, and Sage integrations to recover lost capital.
+            Grey Analytics is a web application for South African SMMEs and their authorised accountants. Users upload bank statements, accounting exports, invoices and spreadsheets; the application extracts the supplied data, checks it with four specialist AI agents, and produces evidence-based findings, estimated savings and plain-language reports.
+          </p>
+          <p className="text-sm text-sidebar-foreground/70 leading-relaxed">
+            Grey Analytics supports internal financial review and anomaly detection. It does not provide a statutory audit, legal opinion or tax-practitioner service, and users should verify findings against their source records.
           </p>
           <div className="pt-2 grid gap-3 text-sm text-sidebar-foreground/90">
             <div className="flex items-center gap-2.5"><CheckCircle2 className="size-4 text-success" /> Automated VAT, UIF & payroll leak detection</div>

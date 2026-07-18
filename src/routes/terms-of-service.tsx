@@ -24,7 +24,7 @@ function TermsOfServicePage() {
           <div className="flex items-center gap-2 text-primary text-sm font-semibold mb-2">
             <Scale className="size-4" /> Legal Agreement
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Terms of Service</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Grey Analytics Terms of Service</h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
             Last Updated: 19 July 2026
           </p>
@@ -36,7 +36,7 @@ function TermsOfServicePage() {
           </CardHeader>
           <CardContent className="text-sm leading-relaxed text-muted-foreground space-y-3">
             <p>
-              These Terms of Service ("Terms") govern your use of the Grey Analytics AI financial auditing web application, portal, and automated alert services. By accessing or utilizing Grey Analytics, you agree to be bound by these Terms.
+              These Terms of Service ("Terms") govern your use of Grey Analytics, an AI-assisted financial document analysis web application for South African businesses and their authorised accountants. The application extracts information from documents supplied by users, checks that information for possible financial anomalies, generates reports, and can deliver optional notifications. By accessing or using Grey Analytics, you agree to these Terms.
             </p>
           </CardContent>
         </Card>
