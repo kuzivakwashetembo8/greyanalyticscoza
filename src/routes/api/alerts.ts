@@ -14,6 +14,9 @@ import { sendWhatsApp } from "@/services/twilioService";
 import { sendEmail } from "@/services/resendService";
 import type { AlertChannelResult, AlertRequestPayload, AlertResponse } from "@/lib/alerts/types";
 import { requireBearer } from "@/lib/api/auth-helpers.server";
+import { requireRateLimit } from "@/lib/api/rate-limit.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { logServerError } from "@/lib/api/monitoring.server";
 
 const AMOUNT_THRESHOLD = 2000;
 
@@ -57,9 +60,22 @@ export const Route = createFileRoute("/api/alerts")({
       POST: async ({ request }) => {
         const auth = await requireBearer(request);
         if (!auth.ok) return auth.response;
+        const rl = await requireRateLimit(auth.userId, "alerts", 20, 10);
+        if (!rl.allowed) return rl.response;
         let payload: AlertRequestPayload;
         try { payload = (await request.json()) as AlertRequestPayload; }
         catch { return json({ success: false, error: "Invalid JSON" }, 400); }
+
+        // Load user profile: channel prefs override request-supplied destinations.
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("email, whatsapp, notify_email, notify_whatsapp")
+          .eq("id", auth.userId).maybeSingle();
+
+        const notifyEmail = profile?.notify_email !== false;
+        const notifyWhats = profile?.notify_whatsapp !== false;
+        const emailTo = notifyEmail ? (payload.emailTo ?? profile?.email ?? "") : "";
+        const whatsappTo = notifyWhats ? (payload.whatsappTo ?? profile?.whatsapp ?? "") : "";
 
         const triggered = (payload.anomalies ?? []).filter(
           (a) => a.severity === "high" || (Number.isFinite(a.amount) && a.amount > AMOUNT_THRESHOLD),
@@ -79,33 +95,85 @@ export const Route = createFileRoute("/api/alerts")({
         const top = [...triggered].sort((a, b) => (b.amount || 0) - (a.amount || 0))[0];
         const results: AlertChannelResult[] = [];
 
-        if (payload.whatsappTo && payload.whatsappTo.trim()) {
-          const r = await sendWhatsApp({ to: payload.whatsappTo, body: buildWhatsAppBody(payload, top) });
+        // Insert a parent alerts row so per-channel deliveries can FK to it.
+        const { data: alertRow, error: alertErr } = await supabaseAdmin
+          .from("alerts")
+          .insert({
+            user_id: auth.userId,
+            report_id: payload.reportId?.match(/^[0-9a-f-]{36}$/i) ? payload.reportId : null,
+            leak_type: top.type,
+            amount: top.amount || 0,
+            severity: top.severity,
+            message: `${top.type} at ${payload.businessName}: ${top.description}`,
+            delivery_status: "pending",
+          })
+          .select("id")
+          .single();
+        if (alertErr) {
+          await logServerError(auth.userId, "alerts.insert", { message: alertErr.message });
+        }
+        const alertId = alertRow?.id;
+
+        async function recordDelivery(channel: "whatsapp" | "email", to: string, ok: boolean, err?: string, providerId?: string) {
+          if (!alertId) return;
+          await supabaseAdmin.from("alert_deliveries").insert({
+            alert_id: alertId,
+            user_id: auth.userId,
+            channel,
+            status: ok ? "sent" : "failed",
+            error: err ?? null,
+            provider_id: providerId ?? null,
+          });
+        }
+
+        if (whatsappTo && whatsappTo.trim()) {
+          const r = await sendWhatsApp({ to: whatsappTo, body: buildWhatsAppBody(payload, top) });
           results.push({
             channel: "whatsapp",
-            to: payload.whatsappTo,
+            to: whatsappTo,
             status: r.ok ? "sent" : "failed",
             error: r.error,
           });
+          await recordDelivery("whatsapp", whatsappTo, r.ok, r.error, r.sid);
         } else {
-          console.warn("[api/alerts] No WhatsApp number on file — skipping WhatsApp channel");
+          console.warn("[api/alerts] WhatsApp channel skipped (opted out or no number)");
         }
 
-        if (payload.emailTo && payload.emailTo.trim()) {
+        if (emailTo && emailTo.trim()) {
           const subject = `Alert: ${top.type} detected – ${payload.businessName}`;
           const r = await sendEmail({
-            to: payload.emailTo,
+            to: emailTo,
             subject,
             text: buildEmailBody(payload, triggered),
           });
           results.push({
             channel: "email",
-            to: payload.emailTo,
+            to: emailTo,
             status: r.ok ? "sent" : "failed",
             error: r.error,
           });
+          await recordDelivery("email", emailTo, r.ok, r.error, r.id);
         } else {
-          console.warn("[api/alerts] No email on file — skipping email channel");
+          console.warn("[api/alerts] Email channel skipped (opted out or no address)");
+        }
+
+        // Update parent alert with rolled-up status.
+        if (alertId) {
+          const anySent = results.some((r) => r.status === "sent");
+          const allSent = results.length > 0 && results.every((r) => r.status === "sent");
+          const rollUp = allSent ? "sent" : anySent ? "partial" : "failed";
+          await supabaseAdmin.from("alerts").update({
+            delivery_status: rollUp,
+            channel: results.map((r) => r.channel).join(","),
+          }).eq("id", alertId);
+        }
+
+        // Mark report as alerted so the UI can dedupe.
+        if (payload.reportId && /^[0-9a-f-]{36}$/i.test(payload.reportId)) {
+          await supabaseAdmin.from("reports")
+            .update({ alerts_sent_at: new Date().toISOString() })
+            .eq("id", payload.reportId)
+            .eq("user_id", auth.userId);
         }
 
         const response: AlertResponse = {
