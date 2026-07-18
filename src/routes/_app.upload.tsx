@@ -96,7 +96,6 @@ function UploadPage() {
       );
       const chunks: string[] = [];
       const failures: string[] = [];
-      const storagePaths: (string | null)[] = [];
       for (const file of files) {
         const kind = detectKind(file);
         let res = await extractClientSide(file);
@@ -108,7 +107,7 @@ function UploadPage() {
         if (res.ok) {
           chunks.push(`=== ${file.name} ===\n${res.text}`);
           // Persist the original bytes in parallel; do not block on failure.
-          storagePaths.push(await uploadOriginalDocument(file));
+          void uploadOriginalDocument(file);
         }
         else failures.push(`${file.name} (${res.reason})`);
       }
