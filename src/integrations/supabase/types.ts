@@ -293,6 +293,7 @@ export type Database = {
       reports: {
         Row: {
           agent_results: Json
+          alerts_sent_at: string | null
           business_name: string
           created_at: string
           extracted_text: string | null
@@ -301,11 +302,13 @@ export type Database = {
           payload: Json
           status: string
           title: string
+          totals: Json
           upload_ids: string[]
           user_id: string
         }
         Insert: {
           agent_results?: Json
+          alerts_sent_at?: string | null
           business_name: string
           created_at?: string
           extracted_text?: string | null
@@ -314,11 +317,13 @@ export type Database = {
           payload: Json
           status?: string
           title?: string
+          totals?: Json
           upload_ids?: string[]
           user_id: string
         }
         Update: {
           agent_results?: Json
+          alerts_sent_at?: string | null
           business_name?: string
           created_at?: string
           extracted_text?: string | null
@@ -327,6 +332,7 @@ export type Database = {
           payload?: Json
           status?: string
           title?: string
+          totals?: Json
           upload_ids?: string[]
           user_id?: string
         }
@@ -334,36 +340,56 @@ export type Database = {
       }
       uploads: {
         Row: {
+          content_hash: string | null
           created_at: string
           extracted_text: string | null
           file_name: string
           id: string
+          mime_type: string | null
+          report_id: string | null
           size: string | null
           source: string | null
           status: string
+          storage_path: string | null
           user_id: string
         }
         Insert: {
+          content_hash?: string | null
           created_at?: string
           extracted_text?: string | null
           file_name: string
           id?: string
+          mime_type?: string | null
+          report_id?: string | null
           size?: string | null
           source?: string | null
           status?: string
+          storage_path?: string | null
           user_id: string
         }
         Update: {
+          content_hash?: string | null
           created_at?: string
           extracted_text?: string | null
           file_name?: string
           id?: string
+          mime_type?: string | null
+          report_id?: string | null
           size?: string | null
           source?: string | null
           status?: string
+          storage_path?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "uploads_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       usage_events: {
         Row: {
@@ -397,7 +423,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      rl_check: {
+        Args: { _bucket: string; _limit: number; _window_minutes: number }
+        Returns: boolean
+      }
+      rl_check_for: {
+        Args: {
+          _bucket: string
+          _limit: number
+          _user: string
+          _window_minutes: number
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "owner" | "accountant"
