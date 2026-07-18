@@ -225,6 +225,26 @@ export const Route = createFileRoute("/api/extract")({
         ]);
         if (!result.success) {
           await logServerError(auth.userId, "extract", { message: result.error });
+        } else {
+          // Best-effort: persist the original bytes to the private
+          // `original-documents` bucket under the caller's uid/ prefix.
+          // Failure to upload does not block returning the extracted text.
+          try {
+            const path = `${auth.userId}/${Date.now()}-${(file as File).name.replace(/[^\w.\-]/g, "_")}`;
+            const { error: upErr } = await supabaseAdmin.storage
+              .from("original-documents")
+              .upload(path, file, {
+                contentType: (file as File).type || "application/octet-stream",
+                upsert: false,
+              });
+            if (upErr) {
+              console.warn("[extract] storage upload failed:", upErr.message);
+            } else {
+              (result as Json & { storage_path?: string }).storage_path = path;
+            }
+          } catch (err) {
+            console.warn("[extract] storage upload exception:", err);
+          }
         }
         return json(result, result.success ? 200 : 422);
       },
