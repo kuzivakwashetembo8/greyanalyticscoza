@@ -16,7 +16,7 @@ export async function logServerError(
     await supabaseAdmin.from("audit_log").insert({
       user_id: userId,
       event: `error.${event}`,
-      detail: safe as unknown as Record<string, unknown>,
+      detail: JSON.parse(JSON.stringify(safe)),
     });
   } catch (err) {
     console.error("[monitor] audit_log insert failed:", err);
