@@ -26,7 +26,7 @@ const MIN_CHARS = 10;
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB cap mirrors the upload UI.
 const TIMEOUT_MS = 30_000;
 
-type Json = { success: boolean; text?: string; error?: string };
+type Json = { success: boolean; text?: string; error?: string; storage_path?: string };
 
 function json(body: Json, status = 200) {
   return new Response(JSON.stringify(body), {
